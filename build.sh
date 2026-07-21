@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Automatically detect owner running the Action, fallback to notamitgamer locally
-USERNAME="${GITHUB_REPOSITORY_OWNER:-notamitgamer}"
-REPO_NAME="${GITHUB_REPOSITORY:-$USERNAME/git-mirror}"
+USERNAME="notamitgamer"
 WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
@@ -115,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderNode(node, depth, parentVisible) {
         const indent = depth * 14;
 
-        // Sort subfolder keys
+        // Sort subfolders first, then render
         const subfolderKeys = Object.keys(node.children).sort();
         
         subfolderKeys.forEach(key => {
@@ -164,8 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper to toggle visibility of child folders & files
     function toggleVisibility(node, show) {
+        // Toggle immediate files
         node.files.forEach(f => f.row.style.display = show ? '' : 'none');
 
+        // Toggle immediate subfolders
         Object.keys(node.children).forEach(key => {
             const child = node.children[key];
             child.row.style.display = show ? '' : 'none';
@@ -194,7 +194,7 @@ EOF
     # Copy last_commit file into repo subfolder
     cat <<EOF > "$SITE_DIR/$REPO/last_commit"
 Host: git.amit.is-a.dev
-Source Repository: $REPO_NAME
+Source Repository: notamitgamer/git-mirror
 Commit: $MIRROR_FULL_HASH
 Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
@@ -210,20 +210,14 @@ stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 # Create root last_commit file
 cat <<EOF > "$SITE_DIR/last_commit"
 Host: git.amit.is-a.dev
-Source Repository: $REPO_NAME
+Source Repository: notamitgamer/git-mirror
 Commit: $MIRROR_FULL_HASH
 Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOF
 
-# 5. Inject BACK BUTTON into EVERY generated HTML page EXCEPT the root index.html
-# Places it directly below the stagit navigation bar (<hr/> after menu)
-BACK_NAV="<div class=\"back-nav\"><a href=\"/\">&larr; Repositories</a></div>"
-find "$SITE_DIR" -type f -name "*.html" ! -path "$SITE_DIR/index.html" -print0 | xargs -0 sed -i \
-    "s#<hr/>#<hr/>\n$BACK_NAV#1"
-
-# 6. Inject formatted multi-line build footer into EVERY generated HTML page
-FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> &amp; modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a>"<br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
+# 5. Inject formatted build footer into EVERY generated HTML page
+FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]</div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s#</body>#$FOOTER_HTML\n</body>#g"
