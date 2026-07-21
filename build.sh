@@ -221,7 +221,7 @@ find "$SITE_DIR" -type f -name "*.html" ! -path "$SITE_DIR/index.html" -print0 |
     "s#<hr/>#<hr/>\n$BACK_NAV#1"
 
 # 5. Inject formatted build footer into EVERY generated HTML page
-FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]</div>"
+FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> &amp; modified by <a href=\"https://github.com/notamitgamer\">@notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s#</body>#$FOOTER_HTML\n</body>#g"
