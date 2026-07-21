@@ -1,3 +1,12 @@
+<p align="center">
+  <img src="https://github.com/notamitgamer/git-mirror/blob/main/assets/logo.png?raw=true" alt="Git Mirror Logo" width="128">
+</p>
+
+<p align="center">
+  <a href="https://github.com/notamitgamer/git-mirror/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/notamitgamer/git-mirror" alt="MIT License">
+  </a>
+  
 # Git Mirror Site Generator
 
 This repository contains an automated setup to generate a fast, static HTML mirror of your public GitHub repositories using `stagit` and GitHub Actions.
