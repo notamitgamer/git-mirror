@@ -11,13 +11,23 @@ rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Fetching public repositories for $USERNAME..."
-
-# Filter out git-mirror, register, AND osma
 REPOS=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma") | .name')
 
 echo "==> Repositories to mirror:"
 echo "$REPOS"
 
+# 1. Copy assets to ROOT output folder (Fixes git.amit.is-a.dev homepage)
+echo "------------------------------------------------"
+echo "==> Copying root assets..."
+if [ -d "$ASSETS_DIR" ]; then
+    for f in style.css favicon.png logo.png; do
+        if [ -f "$ASSETS_DIR/$f" ]; then
+            cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
+        fi
+    done
+fi
+
+# 2. Build stagit for each repository
 for REPO in $REPOS; do
     echo "------------------------------------------------"
     echo "==> Processing: $REPO"
@@ -28,28 +38,19 @@ for REPO in $REPOS; do
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
         
-        # Symlink assets for subfolder pages
-        ln -sf ../style.css style.css
-        ln -sf ../logo.png logo.png
-        ln -sf ../favicon.png favicon.png
+        # Copy assets into each repo folder for subpages
+        [ -f "$SITE_DIR/style.css" ] && cp "$SITE_DIR/style.css" style.css
+        [ -f "$SITE_DIR/logo.png" ] && cp "$SITE_DIR/logo.png" logo.png
+        [ -f "$SITE_DIR/favicon.png" ] && cp "$SITE_DIR/favicon.png" favicon.png
     )
 done
 
+# 3. Generate central stagit-index
 echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 
-echo "------------------------------------------------"
-echo "==> Copying assets..."
-if [ -d "$ASSETS_DIR" ]; then
-    for f in style.css favicon.png logo.png; do
-        if [ -f "$ASSETS_DIR/$f" ]; then
-            cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
-        fi
-    done
-fi
-
-# Copy CNAME if present
+# Copy CNAME for custom domain
 if [ -f "$WORK_DIR/CNAME" ]; then
     cp "$WORK_DIR/CNAME" "$SITE_DIR/CNAME"
 fi
