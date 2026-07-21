@@ -42,6 +42,11 @@ echo "==> Processing repositories..."
 echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     REPO=$(echo "$repo_info" | jq -r '.name')
     DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
+    
+    # Truncate description if it's longer than 30 characters
+    if [ ${#DESC} -gt 30 ]; then
+        DESC="${DESC:0:30}..."
+    fi
 
     echo "------------------------------------------------"
     echo "==> Processing: $REPO"
@@ -258,79 +263,7 @@ Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOF
 
-# 5. Inject UNIVERSAL SMART BACK NAVIGATION SCRIPT into EVERY generated HTML page
-
-D=$'\x01'
-find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    "s${D}</body>${D}<script>\n\
-document.addEventListener('DOMContentLoaded', () => {\n\
-    const path = window.location.pathname;\n\
-    if (path === '/' || path.endsWith('/index.html') && !path.includes('/site/')) {\n\
-        const repoLinks = document.querySelectorAll('#index a');\n\
-        if (repoLinks.length && !document.querySelector('.back-nav')) return;\n\
-    }\n\
-    if (path === '/' || path.endsWith('/site/index.html')) return;\n\
-    const firstHr = document.querySelector('hr');\n\
-    if (!firstHr) return;\n\
-    const container = document.createElement('div');\n\
-    container.className = 'back-nav';\n\
-    container.style.margin = '8px 0 12px 0';\n\
-    container.style.fontWeight = 'bold';\n\
-    container.style.fontSize = '13px';\n\
-    const segments = path.split('/').filter(Boolean);\n\
-    if (!segments.length) return;\n\
-    const fileIdx = segments.indexOf('file');\n\
-    const commitIdx = segments.indexOf('commit');\n\
-    let fallbackHref = '/';\n\
-    \n\
-    /* --- CONSTANT LABEL: ALWAYS JUST SVG + \"Back\" --- */\n\
-    const svgIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align: text-bottom; margin-right: 5px;\" class=\"lucide lucide-arrow-left-icon lucide-arrow-left\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg>';\n\
-    const fallbackLabel = svgIcon + 'Back';\n\
-    \n\
-    if (fileIdx !== -1 && fileIdx < segments.length - 1) {\n\
-        const repoRootUrl = '/' + segments.slice(0, fileIdx).join('/');\n\
-        const filePathSegments = segments.slice(fileIdx + 1);\n\
-        if (filePathSegments.length > 1) {\n\
-            const folderPath = filePathSegments.slice(0, -1).join('/');\n\
-            fallbackHref = repoRootUrl + '/files.html#folder=' + encodeURIComponent(folderPath);\n\
-        } else {\n\
-            fallbackHref = repoRootUrl + '/files.html';\n\
-        }\n\
-    } else if (commitIdx !== -1) {\n\
-        const repoRootUrl = '/' + segments.slice(0, commitIdx).join('/');\n\
-        fallbackHref = repoRootUrl + '/log.html';\n\
-    } else if (path.endsWith('files.html')) {\n\
-        const hash = window.location.hash;\n\
-        if (hash.startsWith('#folder=')) {\n\
-            const folderPath = decodeURIComponent(hash.replace('#folder=', ''));\n\
-            const parts = folderPath.split('/').filter(Boolean);\n\
-            if (parts.length > 1) {\n\
-                fallbackHref = '#folder=' + encodeURIComponent(parts.slice(0, -1).join('/'));\n\
-            } else {\n\
-                fallbackHref = '#';\n\
-            }\n\
-        } else {\n\
-            fallbackHref = '/';\n\
-        }\n\
-    } else {\n\
-        fallbackHref = '/';\n\
-    }\n\
-    const link = document.createElement('a');\n\
-    link.href = fallbackHref;\n\
-    link.innerHTML = fallbackLabel;\n\
-    link.style.textDecoration = 'none';\n\
-    link.addEventListener('click', (e) => {\n\
-        if (window.history.length > 1) {\n\
-            e.preventDefault();\n\
-            window.history.back();\n\
-        }\n\
-    });\n\
-    container.appendChild(link);\n\
-    firstHr.parentNode.insertBefore(container, firstHr.nextSibling);\n\
-});\n\
-</script>\n</body>${D}g"
-
-# 6. Inject formatted multi-line build footer into EVERY generated HTML page
+# 5. Inject formatted multi-line build footer into EVERY generated HTML page
 FOOTER_HTML="<div id=\"build-info\">© <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> • modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
