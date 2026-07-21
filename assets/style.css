@@ -2,6 +2,9 @@ body {
 	color: #000;
 	background-color: #fff;
 	font-family: monospace;
+	max-width: 1100px;
+	margin: 0 auto;
+	padding: 12px 16px;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -21,12 +24,15 @@ a:target {
 	background-color: #ccc;
 }
 
-a.d, a.h, a.i, a.line {
+a.d,
+a.h,
+a.i,
+a.line {
 	text-decoration: none;
 }
 
 #blob a {
-	color: #777;
+	color: #555;
 }
 
 #blob a:hover {
@@ -67,28 +73,34 @@ td.num {
 }
 
 .desc {
-	color: #777;
+	color: #555;
 }
 
 hr {
 	border: 0;
-	border-top: 1px solid #777;
+	border-top: 1px solid #555;
 	height: 1px;
 }
 
 pre {
 	font-family: monospace;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
 }
 
 pre a.h {
 	color: #00a;
 }
 
-span.i, pre a.i {
+.A,
+span.i,
+pre a.i {
 	color: #070;
 }
 
-span.d, pre a.d {
+.D,
+span.d,
+pre a.d {
 	color: #e00;
 }
 
@@ -96,4 +108,62 @@ pre a.h:hover,
 pre a.i:hover,
 pre a.d:hover {
 	text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	body {
+		background-color: #000;
+		color: #bdbdbd;
+	}
+	hr {
+		border-color: #222;
+	}
+	a {
+		color: #56c8ff;
+	}
+	a:target {
+		background-color: #222;
+	}
+	.desc {
+		color: #aaa;
+	}
+	#blob a {
+		color: #555;
+	}
+	#blob a:target {
+		color: #eee;
+	}
+	#blob a:hover {
+		color: #56c8ff;
+	}
+	pre a.h {
+		color: #00cdcd;
+	}
+	.A,
+	span.i,
+	pre a.i {
+		color: #00cd00;
+	}
+	.D,
+	span.d,
+	pre a.d {
+		color: #cd0000;
+	}
+	#branches tr:hover td,
+	#tags tr:hover td,
+	#index tr:hover td,
+	#log tr:hover td,
+	#files tr:hover td {
+		background-color: #111;
+	}
+}
+
+@media screen and (max-width: 680px) {
+	body {
+		padding: 8px 10px;
+		font-size: 13px;
+	}
+	table td {
+		padding: 2px 4px;
+	}
 }
