@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderNode(node, depth, parentVisible) {
         const indent = depth * 14;
 
-        // Sort subfolders first, then render
+        // Sort subfolder keys
         const subfolderKeys = Object.keys(node.children).sort();
         
         subfolderKeys.forEach(key => {
@@ -164,10 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper to toggle visibility of child folders & files
     function toggleVisibility(node, show) {
-        // Toggle immediate files
         node.files.forEach(f => f.row.style.display = show ? '' : 'none');
 
-        // Toggle immediate subfolders
         Object.keys(node.children).forEach(key => {
             const child = node.children[key];
             child.row.style.display = show ? '' : 'none';
