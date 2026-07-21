@@ -11,12 +11,39 @@ rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Fetching public repositories for $USERNAME..."
-REPOS=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma") | .name')
 
-echo "==> Repositories to mirror:"
-echo "$REPOS"
+# 1. Fetch repos along with their GitHub descriptions
+REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
-# 1. Copy assets to ROOT output folder (Fixes git.amit.is-a.dev homepage)
+echo "==> Processing repositories..."
+
+echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
+    REPO=$(echo "$repo_info" | jq -r '.name')
+    DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
+
+    echo "------------------------------------------------"
+    echo "==> Processing: $REPO"
+    
+    # Clone bare repository
+    git clone --bare "https://github.com/$USERNAME/$REPO.git" "$REPOS_DIR/$REPO.git"
+    
+    # Overwrite default Git placeholder files with actual info
+    echo "$DESC" > "$REPOS_DIR/$REPO.git/description"
+    echo "$USERNAME" > "$REPOS_DIR/$REPO.git/owner"
+    
+    mkdir -p "$SITE_DIR/$REPO"
+    (
+        cd "$SITE_DIR/$REPO"
+        stagit "$REPOS_DIR/$REPO.git"
+        
+        # Copy assets into each repo subfolder
+        [ -f "$SITE_DIR/style.css" ] && cp "$SITE_DIR/style.css" style.css
+        [ -f "$SITE_DIR/logo.png" ] && cp "$SITE_DIR/logo.png" logo.png
+        [ -f "$SITE_DIR/favicon.png" ] && cp "$SITE_DIR/favicon.png" favicon.png
+    )
+done
+
+# 2. Copy root assets
 echo "------------------------------------------------"
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
@@ -27,30 +54,12 @@ if [ -d "$ASSETS_DIR" ]; then
     done
 fi
 
-# 2. Build stagit for each repository
-for REPO in $REPOS; do
-    echo "------------------------------------------------"
-    echo "==> Processing: $REPO"
-    git clone --bare "https://github.com/$USERNAME/$REPO.git" "$REPOS_DIR/$REPO.git"
-    
-    mkdir -p "$SITE_DIR/$REPO"
-    (
-        cd "$SITE_DIR/$REPO"
-        stagit "$REPOS_DIR/$REPO.git"
-        
-        # Copy assets into each repo folder for subpages
-        [ -f "$SITE_DIR/style.css" ] && cp "$SITE_DIR/style.css" style.css
-        [ -f "$SITE_DIR/logo.png" ] && cp "$SITE_DIR/logo.png" logo.png
-        [ -f "$SITE_DIR/favicon.png" ] && cp "$SITE_DIR/favicon.png" favicon.png
-    )
-done
-
 # 3. Generate central stagit-index
 echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 
-# Copy CNAME for custom domain
+# Copy CNAME if present
 if [ -f "$WORK_DIR/CNAME" ]; then
     cp "$WORK_DIR/CNAME" "$SITE_DIR/CNAME"
 fi
