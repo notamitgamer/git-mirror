@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-USERNAME="notamitgamer"
+# Automatically detect owner running the Action, fallback to notamitgamer locally
+USERNAME="${GITHUB_REPOSITORY_OWNER:-notamitgamer}"
+REPO_NAME="${GITHUB_REPOSITORY:-$USERNAME/git-mirror}"
 WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
@@ -64,7 +66,7 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
 
-    # --- INJECT TRUE RECURSIVE FOLDER TREE INTO files.html ---
+    # --- INJECT RECURSIVE FOLDER TREE & HASH NAV SCRIPT INTO files.html ---
     if [ -f "$SITE_DIR/$REPO/files.html" ]; then
         cat <<'EOF' >> "$SITE_DIR/$REPO/files.html"
 <script>
@@ -79,8 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const svgClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M2 10h20"/></svg>`;
     const svgOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
 
-    // Build directory tree data structure
     const root = { name: '', children: {}, files: [], path: '' };
+    const nodeMap = {};
 
     rows.forEach(row => {
         const link = row.querySelector('td a');
@@ -97,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
             pathAcc = pathAcc ? `${pathAcc}/${part}` : part;
             
             if (!current.children[part]) {
-                current.children[part] = { name: part, children: {}, files: [], path: pathAcc, row: null, expanded: false };
+                const newNode = { name: part, children: {}, files: [], path: pathAcc, row: null, expanded: false };
+                current.children[part] = newNode;
+                nodeMap[pathAcc] = newNode;
             }
             current = current.children[part];
         }
@@ -107,13 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
         current.files.push({ name: fileName, row: row });
     });
 
-    rows.forEach(r => r.remove()); // Clear default flat table
+    rows.forEach(r => r.remove());
 
-    // Function to render nodes recursively
     function renderNode(node, depth, parentVisible) {
         const indent = depth * 14;
-
-        // Sort subfolders first, then render
         const subfolderKeys = Object.keys(node.children).sort();
         
         subfolderKeys.forEach(key => {
@@ -133,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headerRow.innerHTML = `<td colspan="4" style="padding-left: ${8 + indent}px !important;">${icon}<span style="vertical-align: middle;">${childNode.name}/</span> <span style="font-weight:normal;font-size:0.85em;opacity:0.7;vertical-align: middle;">(${totalItems})</span></td>`;
             };
 
+            childNode.updateHeader = updateHeader;
             updateHeader();
 
             headerRow.addEventListener('click', (e) => {
@@ -140,13 +142,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 childNode.expanded = !childNode.expanded;
                 updateHeader();
                 toggleVisibility(childNode, childNode.expanded);
+
+                if (childNode.expanded) {
+                    window.location.hash = `folder=${encodeURIComponent(childNode.path)}`;
+                } else {
+                    const parentPath = childNode.path.includes('/') ? childNode.path.substring(0, childNode.path.lastIndexOf('/')) : '';
+                    window.location.hash = parentPath ? `folder=${encodeURIComponent(parentPath)}` : '';
+                }
             });
 
             tbody.appendChild(headerRow);
             renderNode(childNode, depth + 1, false);
         });
 
-        // Render non-root files
         if (depth > 0) {
             node.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
                 const fileRow = file.row;
@@ -160,12 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Helper to toggle visibility of child folders & files
     function toggleVisibility(node, show) {
-        // Toggle immediate files
         node.files.forEach(f => f.row.style.display = show ? '' : 'none');
 
-        // Toggle immediate subfolders
         Object.keys(node.children).forEach(key => {
             const child = node.children[key];
             child.row.style.display = show ? '' : 'none';
@@ -178,14 +183,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 1. Render all subfolder structures first
+    function expandToFolder(targetPath) {
+        const parts = targetPath.split('/');
+        let currentPath = '';
+        parts.forEach(part => {
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+            const node = nodeMap[currentPath];
+            if (node) {
+                node.expanded = true;
+                if (node.updateHeader) node.updateHeader();
+                toggleVisibility(node, true);
+                if (node.row) node.row.style.display = '';
+            }
+        });
+    }
+
     renderNode(root, 0, true);
 
-    // 2. Render root-level files at the very bottom (always visible)
     root.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
         file.row.style.display = '';
         tbody.appendChild(file.row);
     });
+
+    function applyHashState() {
+        const hash = window.location.hash;
+        if (hash.startsWith('#folder=')) {
+            const folderPath = decodeURIComponent(hash.replace('#folder=', ''));
+            if (folderPath) {
+                expandToFolder(folderPath);
+            }
+        } else if (hash === '' || hash === '#') {
+            Object.values(nodeMap).forEach(node => {
+                node.expanded = false;
+                if (node.updateHeader) node.updateHeader();
+                toggleVisibility(node, false);
+                if (node.path.includes('/')) {
+                    if (node.row) node.row.style.display = 'none';
+                } else {
+                    if (node.row) node.row.style.display = '';
+                }
+            });
+        }
+    }
+
+    applyHashState();
+    window.addEventListener('hashchange', applyHashState);
 });
 </script>
 EOF
@@ -194,7 +236,7 @@ EOF
     # Copy last_commit file into repo subfolder
     cat <<EOF > "$SITE_DIR/$REPO/last_commit"
 Host: git.amit.is-a.dev
-Source Repository: notamitgamer/git-mirror
+Source Repository: $REPO_NAME
 Commit: $MIRROR_FULL_HASH
 Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
@@ -210,18 +252,72 @@ stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 # Create root last_commit file
 cat <<EOF > "$SITE_DIR/last_commit"
 Host: git.amit.is-a.dev
-Source Repository: notamitgamer/git-mirror
+Source Repository: $REPO_NAME
 Commit: $MIRROR_FULL_HASH
 Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOF
 
-BACK_NAV="<div class=\"back-nav\"><a href=\"/\">&larr; Repositories</a></div>"
-find "$SITE_DIR" -type f -name "*.html" ! -path "$SITE_DIR/index.html" -print0 | xargs -0 sed -i \
-    "s#<hr/>#<hr/>\n$BACK_NAV#1"
+# 5. Inject UNIVERSAL SMART BACK NAVIGATION SCRIPT into EVERY generated HTML page
+find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
+    "s#</body>#<script>\n\
+document.addEventListener('DOMContentLoaded', () => {\n\
+    const path = window.location.pathname;\n\
+    if (path === '/' || path.endsWith('/index.html') && !path.includes('/site/')) {\n\
+        const repoLinks = document.querySelectorAll('#index a');\n\
+        if (repoLinks.length && !document.querySelector('.back-nav')) return;\n\
+    }\n\
+    if (path === '/' || path.endsWith('/site/index.html')) return;\n\
+    const firstHr = document.querySelector('hr');\n\
+    if (!firstHr) return;\n\
+    const container = document.createElement('div');\n\
+    container.className = 'back-nav';\n\
+    container.style.margin = '8px 0 12px 0';\n\
+    container.style.fontWeight = 'bold';\n\
+    container.style.fontSize = '13px';\n\
+    const segments = path.split('/').filter(Boolean);\n\
+    if (!segments.length) return;\n\
+    const fileIdx = segments.indexOf('file');\n\
+    const commitIdx = segments.indexOf('commit');\n\
+    if (fileIdx !== -1 && fileIdx < segments.length - 1) {\n\
+        const repoRootUrl = '/' + segments.slice(0, fileIdx).join('/');\n\
+        const filePathSegments = segments.slice(fileIdx + 1);\n\
+        if (filePathSegments.length > 1) {\n\
+            const folderPath = filePathSegments.slice(0, -1).join('/');\n\
+            const parentName = filePathSegments[filePathSegments.length - 2];\n\
+            container.innerHTML = '<a href=\"' + repoRootUrl + '/files.html#folder=' + encodeURIComponent(folderPath) + '\">&larr; ' + parentName + '/</a>';\n\
+        } else {\n\
+            container.innerHTML = '<a href=\"' + repoRootUrl + '/files.html\">&larr; Files</a>';\n\
+        }\n\
+    } else if (commitIdx !== -1) {\n\
+        const repoRootUrl = '/' + segments.slice(0, commitIdx).join('/');\n\
+        container.innerHTML = '<a href=\"' + repoRootUrl + '/log.html\">&larr; Log</a>';\n\
+    } else {\n\
+        const isFilesPage = path.endsWith('files.html');\n\
+        function updateRepoNav() {\n\
+            const hash = window.location.hash;\n\
+            if (isFilesPage && hash.startsWith('#folder=')) {\n\
+                const folderPath = decodeURIComponent(hash.replace('#folder=', ''));\n\
+                const parts = folderPath.split('/').filter(Boolean);\n\
+                if (parts.length > 1) {\n\
+                    const parentFolder = parts.slice(0, -1).join('/');\n\
+                    container.innerHTML = '<a href=\"#folder=' + encodeURIComponent(parentFolder) + '\">&larr; ' + parts[parts.length - 2] + '/</a>';\n\
+                } else if (parts.length === 1) {\n\
+                    container.innerHTML = '<a href=\"#\">&larr; Files</a>';\n\
+                }\n\
+            } else {\n\
+                container.innerHTML = '<a href=\"/\">&larr; Repositories</a>';\n\
+            }\n\
+        }\n\
+        updateRepoNav();\n\
+        window.addEventListener('hashchange', updateRepoNav);\n\
+    }\n\
+    firstHr.parentNode.insertBefore(container, firstHr.nextSibling);\n\
+});\n\
+</script>\n</body>#g"
 
-# 5. Inject formatted build footer into EVERY generated HTML page
-FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> &amp; modified by <a href=\"https://github.com/notamitgamer\">@notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
+# 6. Inject formatted multi-line build footer into EVERY generated HTML page
+FOOTER_HTML="<div id=\"build-info\">© <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> &amp; modified by <a href=\"https://github.com/notamitgamer\">@notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s#</body>#$FOOTER_HTML\n</body>#g"
