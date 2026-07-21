@@ -16,7 +16,7 @@ BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
-# 2. Copy root assets FIRST so they are available for subfolders
+# 2. Copy root assets FIRST
 echo "------------------------------------------------"
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
@@ -54,7 +54,7 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
         
-        # Copy assets safely into each repo subfolder
+        # Copy assets into each repo subfolder safely
         if [ -f "$SITE_DIR/style.css" ]; then cp "$SITE_DIR/style.css" style.css; fi
         if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" logo.png; fi
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
@@ -86,7 +86,8 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject formatted build footer into EVERY generated HTML page
-FOOTER_HTML="<div id=\"build-info\">&copy; 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> &bull; Site Built: $BUILD_TIME &bull; git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\">view raw info</a>]</div>"
+# Uses literal UTF-8 symbols (© and •) and links view raw info to /last_commit
+FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]</div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s#</body>#$FOOTER_HTML\n</body>#g"

@@ -2,8 +2,8 @@ name: Generate & Deploy Git Mirror
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # Runs automatically every night at midnight UTC
+  workflow_dispatch:      # Manual trigger button in GitHub UI
 
 permissions:
   contents: read
@@ -24,10 +24,10 @@ jobs:
       - name: Checkout builder repo
         uses: actions/checkout@v4
 
-      - name: Install stagit
+      - name: Install stagit dependencies and build stagit
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libgit2-dev
+          sudo apt-get install -y build-essential libgit2-dev jq
           git clone https://github.com/oxalorg/stagit.git /tmp/stagit
           cd /tmp/stagit
           make
