@@ -216,6 +216,10 @@ Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOF
 
+BACK_NAV="<div class=\"back-nav\"><a href=\"/\">&larr; Repositories</a></div>"
+find "$SITE_DIR" -type f -name "*.html" ! -path "$SITE_DIR/index.html" -print0 | xargs -0 sed -i \
+    "s#<hr/>#<hr/>\n$BACK_NAV#1"
+
 # 5. Inject formatted build footer into EVERY generated HTML page
 FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]</div>"
 
