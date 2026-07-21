@@ -1,0 +1,143 @@
+:root {
+	--bg: #0d1117;
+	--bg-alt: #161b22;
+	--border: #30363d;
+	--text: #c9d1d9;
+	--text-dim: #8b949e;
+	--accent: #58a6ff;
+	--accent-hover: #79c0ff;
+	--code-bg: #161b22;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+	margin: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+a {
+	color: var(--accent);
+	text-decoration: none;
+}
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+#content {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 16px 20px 48px;
+}
+
+table#index, table#branches, table#logs, table#files, table#refs,
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+table td, table th {
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+	word-break: break-word;
+}
+
+table th {
+	text-align: left;
+	color: var(--text-dim);
+	font-weight: 600;
+	border-bottom: 2px solid var(--border);
+}
+
+tr:hover td { background: var(--bg-alt); }
+
+#index td.desc { color: var(--text-dim); }
+
+img { max-width: 100%; height: auto; }
+
+.logo, #logo {
+	width: 32px;
+	height: 32px;
+	vertical-align: middle;
+	margin-right: 8px;
+}
+
+h1, h2, h3 {
+	color: var(--text);
+	font-weight: 600;
+}
+
+pre {
+	background: var(--code-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 12px;
+	overflow-x: auto;
+	font-size: 13px;
+	line-height: 1.45;
+	-webkit-overflow-scrolling: touch;
+}
+
+code {
+	background: var(--code-bg);
+	padding: 1px 4px;
+	border-radius: 4px;
+	font-size: 13px;
+}
+
+.d { color: var(--text-dim); }      
+.i { color: #3fb950; }              
+.u { color: var(--text); }          
+a.h { color: var(--accent); }
+
+hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	margin: 16px 0;
+}
+
+#header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 16px;
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+#header .desc { color: var(--text-dim); font-size: 13px; }
+
+@media screen and (max-width: 680px) {
+	#content { padding: 12px; }
+
+	table, thead, tbody, th, td, tr {
+		display: block;
+		width: 100%;
+	}
+
+	table thead { display: none; }
+
+	table tr {
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		margin-bottom: 10px;
+		padding: 8px 10px;
+	}
+
+	table td {
+		border: none;
+		padding: 3px 0;
+	}
+
+	table td:empty { display: none; }
+
+	pre { font-size: 12px; }
+
+	#header { flex-direction: column; align-items: flex-start; }
+}
