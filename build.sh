@@ -6,7 +6,6 @@ WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
-BASE_PATH="" # Set to "/git-mirror" if hosting on a subpath, keep empty "" for custom domains like git.username.is-a.dev
 
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
@@ -26,6 +25,11 @@ for REPO in $REPOS; do
     (
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
+        
+        # Create relative symlinks inside each repo subfolder as instructed in example_create.sh
+        ln -sf ../style.css style.css
+        ln -sf ../logo.png logo.png
+        ln -sf ../favicon.png favicon.png
     )
 done
 
@@ -39,26 +43,13 @@ if [ -d "$ASSETS_DIR" ]; then
     for f in style.css favicon.png logo.png; do
         if [ -f "$ASSETS_DIR/$f" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
-        else
-            echo "WARNING: $ASSETS_DIR/$f not found, skipping"
         fi
     done
-else
-    echo "WARNING: $ASSETS_DIR not found - no CSS/assets will be applied"
 fi
 
-# Copy CNAME file if present in repository root
+# Copy CNAME if present
 if [ -f "$WORK_DIR/CNAME" ]; then
     cp "$WORK_DIR/CNAME" "$SITE_DIR/CNAME"
-fi
-
-if [ -n "$BASE_PATH" ]; then
-    echo "------------------------------------------------"
-    echo "==> Rewriting asset links to absolute base path ($BASE_PATH)..."
-    find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-        -e "s#href=\"style.css\"#href=\"$BASE_PATH/style.css\"#g" \
-        -e "s#href=\"favicon.png\"#href=\"$BASE_PATH/favicon.png\"#g" \
-        -e "s#src=\"logo.png\"#src=\"$BASE_PATH/logo.png\"#g"
 fi
 
 echo "------------------------------------------------"
