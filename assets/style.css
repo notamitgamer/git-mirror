@@ -180,3 +180,18 @@ pre a.d:hover {
 		background-color: #111;
 	}
 }
+/* Build metadata footer */
+#build-info {
+	margin-top: 20px;
+	padding-top: 8px;
+	border-top: 1px dashed #555;
+	font-size: 11px;
+	color: #777;
+}
+
+@media (prefers-color-scheme: dark) {
+	#build-info {
+		border-top-color: #333;
+		color: #666;
+	}
+}
