@@ -20,7 +20,7 @@ mkdir -p "$REPOS_DIR" "$SITE_DIR"
 echo "------------------------------------------------"
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
-    for f in style.css favicon.png logo.png; do
+    for f in style.css favicon.png logo.png icon.png; do
         if [ -f "$ASSETS_DIR/$f" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
         fi
@@ -86,7 +86,6 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject formatted build footer into EVERY generated HTML page
-# Uses literal UTF-8 symbols (© and •) and links view raw info to /last_commit
 FOOTER_HTML="<div id=\"build-info\">© 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]</div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
