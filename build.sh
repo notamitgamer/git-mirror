@@ -72,39 +72,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const table = document.querySelector('#files, #content table');
     if (!table) return;
 
-    const rows = Array.from(table.querySelectorAll('tbody tr, tr')).slice(1);
-    const groups = {};
+    const tbody = table.querySelector('tbody') || table;
+    const rows = Array.from(table.querySelectorAll('tr')).filter(r => r.querySelector('td a'));
+    if (!rows.length) return;
 
     const svgClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M2 10h20"/></svg>`;
     const svgOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
+
+    const groups = {};
+    const rootRows = [];
 
     rows.forEach(row => {
         const link = row.querySelector('td a');
         if (!link) return;
 
-        const pathParts = link.textContent.trim().split('/');
+        const fullPath = link.textContent.trim();
+        const pathParts = fullPath.split('/');
+
         if (pathParts.length > 1) {
             const folder = pathParts.slice(0, -1).join('/');
             const fileName = pathParts[pathParts.length - 1];
 
-            link.textContent = fileName;
+            // Display file name indented under its folder
+            const indent = (pathParts.length - 1) * 12;
+            link.innerHTML = `<span style="display:inline-block; margin-left:${indent}px;">${fileName}</span>`;
 
             if (!groups[folder]) groups[folder] = [];
             groups[folder].push(row);
+            
+            // Hide file by default (closed state)
+            row.style.display = 'none';
+        } else {
+            rootRows.push(row);
         }
     });
 
-    const tbody = table.querySelector('tbody') || table;
-    
+    // Clear current table rows
+    rows.forEach(r => r.remove());
+
+    // 1. First append all Folders & their child files
     Object.keys(groups).sort().forEach(folder => {
         const headerRow = document.createElement('tr');
         headerRow.classList.add('folder-header');
         
-        let expanded = true;
+        let expanded = false; // Closed by default
         
+        const folderDepth = folder.split('/').length - 1;
+        const folderIndent = folderDepth * 12;
+
         const renderHeader = () => {
             const icon = expanded ? svgOpen : svgClosed;
-            headerRow.innerHTML = `<td colspan="4">${icon}<span style="vertical-align: middle;">${folder}/</span> <span style="font-weight:normal;font-size:0.85em;opacity:0.7;vertical-align: middle;">(${groups[folder].length} files)</span></td>`;
+            headerRow.innerHTML = `<td colspan="4" style="padding-left: ${8 + folderIndent}px !important;">${icon}<span style="vertical-align: middle;">${folder}/</span> <span style="font-weight:normal;font-size:0.85em;opacity:0.7;vertical-align: middle;">(${groups[folder].length} files)</span></td>`;
         };
 
         renderHeader();
@@ -115,8 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderHeader();
         });
 
-        tbody.insertBefore(headerRow, groups[folder][0]);
+        tbody.appendChild(headerRow);
+        groups[folder].forEach(r => tbody.appendChild(r));
     });
+
+    // 2. Then append Root Files at the very bottom
+    rootRows.forEach(r => tbody.appendChild(r));
 });
 </script>
 EOF
