@@ -6,6 +6,7 @@ WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
+BASE_PATH=""
 
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
@@ -41,9 +42,6 @@ if [ -d "$ASSETS_DIR" ]; then
     for f in style.css favicon.png logo.png; do
         if [ -f "$ASSETS_DIR/$f" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
-            for REPO in $REPOS; do
-                cp "$ASSETS_DIR/$f" "$SITE_DIR/$REPO/$f"
-            done
         else
             echo "WARNING: $ASSETS_DIR/$f not found, skipping"
         fi
@@ -51,6 +49,13 @@ if [ -d "$ASSETS_DIR" ]; then
 else
     echo "WARNING: $ASSETS_DIR not found — no CSS/assets will be applied"
 fi
+
+echo "------------------------------------------------"
+echo "==> Rewriting asset links to absolute paths..."
+find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
+    -e "s#href=\"style.css\"#href=\"$BASE_PATH/style.css\"#g" \
+    -e "s#href=\"favicon.png\"#href=\"$BASE_PATH/favicon.png\"#g" \
+    -e "s#src=\"logo.png\"#src=\"$BASE_PATH/logo.png\"#g"
 
 echo "------------------------------------------------"
 echo "==> Injecting mobile viewport meta tags..."
