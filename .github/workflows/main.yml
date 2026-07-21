@@ -1,0 +1,50 @@
+name: Generate & Deploy Git Mirror
+
+on:
+  schedule:
+    - cron: '0 0 * * *' 
+  workflow_dispatch:   
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout builder repo
+        uses: actions/checkout@v4
+
+      - name: Install stagit dependencies and build stagit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgit2-dev
+          git clone https://github.com/oxalorg/stagit.git /tmp/stagit
+          cd /tmp/stagit
+          make
+          sudo make install
+
+      - name: Build Mirror Site
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
