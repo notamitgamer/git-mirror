@@ -259,13 +259,7 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject UNIVERSAL SMART BACK NAVIGATION SCRIPT into EVERY generated HTML page
-# NOTE: delimiter changed from '#' to a single-byte control character (SOH,
-# \x01) because the injected JS contains literal '#' characters (e.g.
-# '#folder=', href="#") which broke sed's s#...#...#g substitution
-# ("unknown option to `s'"). GNU sed also requires the delimiter to be a
-# single-byte character, so a multi-byte char like '§' fails with
-# "delimiter character is not a single-byte character". \x01 never appears
-# in the injected script, so it's safe to use here.
+
 D=$'\x01'
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s${D}</body>${D}<script>\n\
@@ -287,39 +281,51 @@ document.addEventListener('DOMContentLoaded', () => {\n\
     if (!segments.length) return;\n\
     const fileIdx = segments.indexOf('file');\n\
     const commitIdx = segments.indexOf('commit');\n\
+    let fallbackHref = '/';\n\
+    \n\
+    /* --- CONSTANT LABEL: ALWAYS JUST SVG + \"Back\" --- */\n\
+    const svgIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align: text-bottom; margin-right: 5px;\" class=\"lucide lucide-arrow-left-icon lucide-arrow-left\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg>';\n\
+    const fallbackLabel = svgIcon + 'Back';\n\
+    \n\
     if (fileIdx !== -1 && fileIdx < segments.length - 1) {\n\
         const repoRootUrl = '/' + segments.slice(0, fileIdx).join('/');\n\
         const filePathSegments = segments.slice(fileIdx + 1);\n\
         if (filePathSegments.length > 1) {\n\
             const folderPath = filePathSegments.slice(0, -1).join('/');\n\
-            const parentName = filePathSegments[filePathSegments.length - 2];\n\
-            container.innerHTML = '<a href=\"' + repoRootUrl + '/files.html#folder=' + encodeURIComponent(folderPath) + '\">&larr; ' + parentName + '/</a>';\n\
+            fallbackHref = repoRootUrl + '/files.html#folder=' + encodeURIComponent(folderPath);\n\
         } else {\n\
-            container.innerHTML = '<a href=\"' + repoRootUrl + '/files.html\">&larr; Files</a>';\n\
+            fallbackHref = repoRootUrl + '/files.html';\n\
         }\n\
     } else if (commitIdx !== -1) {\n\
         const repoRootUrl = '/' + segments.slice(0, commitIdx).join('/');\n\
-        container.innerHTML = '<a href=\"' + repoRootUrl + '/log.html\">&larr; Log</a>';\n\
-    } else {\n\
-        const isFilesPage = path.endsWith('files.html');\n\
-        function updateRepoNav() {\n\
-            const hash = window.location.hash;\n\
-            if (isFilesPage && hash.startsWith('#folder=')) {\n\
-                const folderPath = decodeURIComponent(hash.replace('#folder=', ''));\n\
-                const parts = folderPath.split('/').filter(Boolean);\n\
-                if (parts.length > 1) {\n\
-                    const parentFolder = parts.slice(0, -1).join('/');\n\
-                    container.innerHTML = '<a href=\"#folder=' + encodeURIComponent(parentFolder) + '\">&larr; ' + parts[parts.length - 2] + '/</a>';\n\
-                } else if (parts.length === 1) {\n\
-                    container.innerHTML = '<a href=\"#\">&larr; Files</a>';\n\
-                }\n\
+        fallbackHref = repoRootUrl + '/log.html';\n\
+    } else if (path.endsWith('files.html')) {\n\
+        const hash = window.location.hash;\n\
+        if (hash.startsWith('#folder=')) {\n\
+            const folderPath = decodeURIComponent(hash.replace('#folder=', ''));\n\
+            const parts = folderPath.split('/').filter(Boolean);\n\
+            if (parts.length > 1) {\n\
+                fallbackHref = '#folder=' + encodeURIComponent(parts.slice(0, -1).join('/'));\n\
             } else {\n\
-                container.innerHTML = '<a href=\"/\">&larr; Repositories</a>';\n\
+                fallbackHref = '#';\n\
             }\n\
+        } else {\n\
+            fallbackHref = '/';\n\
         }\n\
-        updateRepoNav();\n\
-        window.addEventListener('hashchange', updateRepoNav);\n\
+    } else {\n\
+        fallbackHref = '/';\n\
     }\n\
+    const link = document.createElement('a');\n\
+    link.href = fallbackHref;\n\
+    link.innerHTML = fallbackLabel;\n\
+    link.style.textDecoration = 'none';\n\
+    link.addEventListener('click', (e) => {\n\
+        if (window.history.length > 1) {\n\
+            e.preventDefault();\n\
+            window.history.back();\n\
+        }\n\
+    });\n\
+    container.appendChild(link);\n\
     firstHr.parentNode.insertBefore(container, firstHr.nextSibling);\n\
 });\n\
 </script>\n</body>${D}g"
