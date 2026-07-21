@@ -6,7 +6,7 @@ WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
-BASE_PATH=""
+BASE_PATH="/git-mirror"
 
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
