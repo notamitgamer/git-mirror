@@ -13,7 +13,7 @@ mkdir -p "$REPOS_DIR" "$SITE_DIR"
 echo "==> Fetching public repositories for $USERNAME..."
 
 # Filter out git-mirror, register, AND osma
-REPOS=$(gh repo list "$USERNAME" --public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma") | .name')
+REPOS=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma") | .name')
 
 echo "==> Repositories to mirror:"
 echo "$REPOS"
