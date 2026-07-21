@@ -105,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileName = parts[parts.length - 1];
         link.innerHTML = `<span class="file-name">${fileName}</span>`;
         current.files.push({ name: fileName, row: row });
-        row.style.display = 'none'; // Hide all files initially
     });
 
     rows.forEach(r => r.remove()); // Clear default flat table
@@ -147,18 +146,18 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNode(childNode, depth + 1, false);
         });
 
-        // Render files belonging directly to this directory
-        node.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
-            const fileRow = file.row;
-            const linkCell = fileRow.querySelector('td a');
-            if (linkCell) {
-                linkCell.style.paddingLeft = `${indent}px`;
-            }
-            if (!parentVisible && depth > 0) {
-                fileRow.style.display = 'none';
-            }
-            tbody.appendChild(fileRow);
-        });
+        // Render non-root files
+        if (depth > 0) {
+            node.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
+                const fileRow = file.row;
+                const linkCell = fileRow.querySelector('td a');
+                if (linkCell) {
+                    linkCell.style.paddingLeft = `${indent}px`;
+                }
+                fileRow.style.display = parentVisible ? '' : 'none';
+                tbody.appendChild(fileRow);
+            });
+        }
     }
 
     // Helper to toggle visibility of child folders & files
@@ -171,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const child = node.children[key];
             child.row.style.display = show ? '' : 'none';
             
-            // If subfolder was previously expanded, keep its items visible, otherwise keep hidden
             if (show && child.expanded) {
                 toggleVisibility(child, true);
             } else if (!show) {
@@ -180,8 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Render tree from root level
+    // 1. Render all subfolder structures first
     renderNode(root, 0, true);
+
+    // 2. Render root-level files at the very bottom (always visible)
+    root.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
+        file.row.style.display = '';
+        tbody.appendChild(file.row);
+    });
 });
 </script>
 EOF
