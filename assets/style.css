@@ -6,8 +6,8 @@
 }
 
 body {
-	color: #000;
-	background-color: #fff;
+	color: #000000;
+	background-color: #ffffff;
 	font-family: 'JetBrains Mono', monospace;
 	font-size: 14px;
 	margin: 0 auto;
@@ -18,6 +18,7 @@ h1, h2, h3, h4, h5, h6 {
 	font-size: 1em;
 	margin: 0;
 	font-family: 'JetBrains Mono', monospace;
+	color: #000000;
 }
 
 img, h1, h2 {
@@ -29,7 +30,7 @@ img {
 }
 
 a {
-	color: #00f;
+	color: #0000ff;
 	text-decoration: none;
 }
 
@@ -38,7 +39,7 @@ a:hover {
 }
 
 a:target {
-	background-color: #ccc;
+	background-color: #dddddd;
 }
 
 a.d,
@@ -48,13 +49,27 @@ a.line {
 	text-decoration: none;
 }
 
+/* Top Back Navigation Link */
+.back-nav {
+	margin-bottom: 12px;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.back-nav a {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: #0000ff;
+}
+
 /* Code Blobs & Files */
 #blob a {
-	color: #555;
+	color: #444444;
 }
 
 #blob a:hover {
-	color: blue;
+	color: #0000ff;
 	text-decoration: none;
 }
 
@@ -69,6 +84,7 @@ table {
 
 table thead td {
 	font-weight: bold;
+	color: #000000;
 }
 
 table td, table th {
@@ -83,7 +99,7 @@ table td, table th {
 #index tr:hover td,
 #log tr:hover td,
 #files tr:hover td {
-	background-color: #eee;
+	background-color: #f0f0f0;
 }
 
 td.num {
@@ -91,12 +107,12 @@ td.num {
 }
 
 .desc {
-	color: #555;
+	color: #444444;
 }
 
 hr {
 	border: 0;
-	border-top: 1px solid #555;
+	border-top: 1px solid #000000;
 	height: 1px;
 	margin: 12px 0;
 }
@@ -111,19 +127,19 @@ pre {
 }
 
 pre a.h {
-	color: #00a;
+	color: #0000aa;
 }
 
 .A,
 span.i,
 pre a.i {
-	color: #070;
+	color: #007700;
 }
 
 .D,
 span.d,
 pre a.d {
-	color: #e00;
+	color: #ee0000;
 }
 
 pre a.h:hover,
@@ -136,9 +152,10 @@ pre a.d:hover {
 #build-info {
 	margin-top: 20px;
 	padding-top: 8px;
-	border-top: 1px dashed #555;
+	border-top: 1px dashed #444444;
 	font-size: 11px;
-	color: #777;
+	color: #666666;
+	line-height: 1.6;
 }
 
 /* Custom Folder Tree Styles */
@@ -146,43 +163,46 @@ tr.folder-header {
 	cursor: pointer;
 	font-weight: 700;
 	user-select: none;
-	background-color: #f6f8fa;
-	-webkit-tap-highlight-color: transparent; /* Removes blue mobile tap highlight */
+	background-color: #f4f4f4;
+	-webkit-tap-highlight-color: transparent;
 	outline: none;
 }
 
 tr.folder-header:hover {
-	background-color: #eaeef2 !important;
+	background-color: #e5e5e5 !important;
 }
 
 tr.folder-header td {
 	padding: 6px 8px !important;
-	border-bottom: 1px solid #e1e4e8;
+	border-bottom: 1px solid #cccccc;
 }
 
-/* System Dark Mode */
+/* System Dark Mode - TRUE OLED BLACK (#000000) */
 @media (prefers-color-scheme: dark) {
 	body {
-		background-color: #000;
-		color: #bdbdbd;
+		background-color: #000000;
+		color: #e0e0e0;
+	}
+	h1, h2, h3, h4, h5, h6, table thead td {
+		color: #ffffff;
 	}
 	hr {
-		border-color: #222;
+		border-color: #222222;
 	}
-	a {
+	a, .back-nav a {
 		color: #56c8ff;
 	}
 	a:target {
-		background-color: #222;
+		background-color: #222222;
 	}
 	.desc {
-		color: #aaa;
+		color: #888888;
 	}
 	#blob a {
-		color: #555;
+		color: #777777;
 	}
 	#blob a:target {
-		color: #eee;
+		color: #ffffff;
 	}
 	#blob a:hover {
 		color: #56c8ff;
@@ -205,19 +225,19 @@ tr.folder-header td {
 	#index tr:hover td,
 	#log tr:hover td,
 	#files tr:hover td {
-		background-color: #111;
+		background-color: #0d0d0d;
 	}
 	#build-info {
-		border-top-color: #333;
-		color: #666;
+		border-top-color: #222222;
+		color: #666666;
 	}
 	tr.folder-header {
-		background-color: #161b22;
+		background-color: #0a0a0a;
 	}
 	tr.folder-header:hover {
-		background-color: #21262d !important;
+		background-color: #141414 !important;
 	}
 	tr.folder-header td {
-		border-bottom-color: #30363d;
+		border-bottom-color: #222222;
 	}
 }
