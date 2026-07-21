@@ -2,10 +2,9 @@ name: Generate & Deploy Git Mirror
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs automatically every night at midnight UTC
+    - cron: '0 0 * * *' 
   workflow_dispatch:      
 
-# Grants permissions required to deploy to GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -28,7 +27,11 @@ jobs:
       - name: Install stagit and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y stagit
+          sudo apt-get install -y build-essential libgit2-dev
+          git clone https://git.codemadness.org/stagit /tmp/stagit
+          cd /tmp/stagit
+          make
+          sudo make install
 
       - name: Build Mirror Site
         env:
