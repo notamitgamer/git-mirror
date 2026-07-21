@@ -7,12 +7,18 @@ REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
 
+# 1. Capture git-mirror Repository Commit & Build Metadata
+MIRROR_COMMIT_HASH=$(git -C "$WORK_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+MIRROR_FULL_HASH=$(git -C "$WORK_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+MIRROR_COMMIT_DATE=$(git -C "$WORK_DIR" log -1 --format="%cd" --date=iso-strict 2>/dev/null || echo "unknown")
+BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Fetching public repositories for $USERNAME..."
 
-# 1. Fetch repos along with their GitHub descriptions
+# 2. Fetch public repositories
 REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories..."
@@ -27,23 +33,35 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     # Clone bare repository
     git clone --bare "https://github.com/$USERNAME/$REPO.git" "$REPOS_DIR/$REPO.git"
     
-    # Overwrite default Git placeholder files with actual info
+    # Overwrite default Git placeholder files
     echo "$DESC" > "$REPOS_DIR/$REPO.git/description"
     echo "$USERNAME" > "$REPOS_DIR/$REPO.git/owner"
-    
+
     mkdir -p "$SITE_DIR/$REPO"
+
+    # Generate stagit HTML pages
     (
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
         
-        # Copy assets into each repo subfolder
+        # Copy assets into each repo folder
         [ -f "$SITE_DIR/style.css" ] && cp "$SITE_DIR/style.css" style.css
         [ -f "$SITE_DIR/logo.png" ] && cp "$SITE_DIR/logo.png" logo.png
         [ -f "$SITE_DIR/favicon.png" ] && cp "$SITE_DIR/favicon.png" favicon.png
     )
+
+    # Copy last_commit file into repo subfolder
+    cat <<EOF > "$SITE_DIR/$REPO/last_commit"
+Host: git.amit.is-a.dev
+Source Repository: notamitgamer/git-mirror
+Commit: $MIRROR_FULL_HASH
+Commit Date: $MIRROR_COMMIT_DATE
+Build Date: $BUILD_TIME
+EOF
+
 done
 
-# 2. Copy root assets
+# 3. Copy root assets
 echo "------------------------------------------------"
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
@@ -54,10 +72,25 @@ if [ -d "$ASSETS_DIR" ]; then
     done
 fi
 
-# 3. Generate central stagit-index
+# 4. Generate central stagit-index
 echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
+
+# Create root last_commit file
+cat <<EOF > "$SITE_DIR/last_commit"
+Host: git.amit.is-a.dev
+Source Repository: notamitgamer/git-mirror
+Commit: $MIRROR_FULL_HASH
+Commit Date: $MIRROR_COMMIT_DATE
+Build Date: $BUILD_TIME
+EOF
+
+# 5. Inject formatted build footer into EVERY generated HTML page
+FOOTER_HTML="<div id=\"build-info\">&copy; 2025-2026 <a href=\"https://github.com/notamitgamer\" target=\"_blank\">notamitgamer</a> &bull; Site Built: $BUILD_TIME &bull; git-mirror commit: <a href=\"https://github.com/notamitgamer/git-mirror/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\">view raw info</a>]</div>"
+
+find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
+    "s#</body>#$FOOTER_HTML\n</body>#g"
 
 # Copy CNAME if present
 if [ -f "$WORK_DIR/CNAME" ]; then
