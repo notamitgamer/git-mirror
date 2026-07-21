@@ -141,6 +141,23 @@ pre a.d:hover {
 	color: #777;
 }
 
+/* Custom Folder Tree Styles */
+tr.folder-header {
+	cursor: pointer;
+	font-weight: 700;
+	user-select: none;
+	background-color: #f6f8fa;
+}
+
+tr.folder-header:hover {
+	background-color: #eaeef2 !important;
+}
+
+tr.folder-header td {
+	padding: 6px 8px !important;
+	border-bottom: 1px solid #e1e4e8;
+}
+
 /* System Dark Mode */
 @media (prefers-color-scheme: dark) {
 	body {
@@ -191,5 +208,14 @@ pre a.d:hover {
 	#build-info {
 		border-top-color: #333;
 		color: #666;
+	}
+	tr.folder-header {
+		background-color: #161b22;
+	}
+	tr.folder-header:hover {
+		background-color: #21262d !important;
+	}
+	tr.folder-header td {
+		border-bottom-color: #30363d;
 	}
 }
