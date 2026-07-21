@@ -101,7 +101,7 @@ hr {
 	margin: 12px 0;
 }
 
-/* Code & Diffs - Pure straight lines with scrollbar */
+/* Code & Diffs */
 pre {
 	font-family: 'JetBrains Mono', monospace;
 	margin: 0;
@@ -147,6 +147,8 @@ tr.folder-header {
 	font-weight: 700;
 	user-select: none;
 	background-color: #f6f8fa;
+	-webkit-tap-highlight-color: transparent; /* Removes blue mobile tap highlight */
+	outline: none;
 }
 
 tr.folder-header:hover {
