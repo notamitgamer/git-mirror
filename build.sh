@@ -11,7 +11,9 @@ rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Fetching public repositories for $USERNAME..."
-REPOS=$(gh repo list "$USERNAME" --public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register") | .name')
+
+# Filter out git-mirror, register, AND osma
+REPOS=$(gh repo list "$USERNAME" --public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma") | .name')
 
 echo "==> Repositories to mirror:"
 echo "$REPOS"
@@ -26,7 +28,7 @@ for REPO in $REPOS; do
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
         
-        # Create relative symlinks inside each repo subfolder as instructed in example_create.sh
+        # Symlink assets for subfolder pages
         ln -sf ../style.css style.css
         ln -sf ../logo.png logo.png
         ln -sf ../favicon.png favicon.png
