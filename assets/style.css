@@ -5,6 +5,14 @@
 	box-sizing: border-box;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, input, textarea {
+  outline: none;
+}
+
 body {
 	color: #000000;
 	background-color: #ffffff;
