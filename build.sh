@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-USERNAME="notamitgamer" 
+USERNAME="notamitgamer"
 WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
@@ -12,7 +12,9 @@ rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Fetching public repositories for $USERNAME..."
-REPOS=$(gh repo list "$USERNAME" --public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror") | .name')
+
+# Filter out both git-mirror AND register
+REPOS=$(gh repo list "$USERNAME" --public --limit 100 --json name -q '.[] | select(.name != "git-mirror" and .name != "register") | .name')
 
 echo "==> Repositories to mirror:"
 echo "$REPOS"
@@ -22,7 +24,7 @@ for REPO in $REPOS; do
     echo "------------------------------------------------"
     echo "==> Processing: $REPO"
     
-    # Clone bare copy (contains raw git history, branches, tags)
+    # Clone bare copy
     git clone --bare "https://github.com/$USERNAME/$REPO.git" "$REPOS_DIR/$REPO.git"
     
     # Setup stagit site directory for this repo
@@ -42,7 +44,7 @@ stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 
 # 3. Copy stagit assets (favicon, logo, css) to the root site directory
 FIRST_REPO=$(echo "$REPOS" | head -n 1)
-if [ -n "$FIRST_REPO" ]; discovery; then
+if [ -n "$FIRST_REPO" ]; then
     cp "$SITE_DIR/$FIRST_REPO/favicon.png" "$SITE_DIR/favicon.png" 2>/dev/null || true
     cp "$SITE_DIR/$FIRST_REPO/logo.png" "$SITE_DIR/logo.png" 2>/dev/null || true
     cp "$SITE_DIR/$FIRST_REPO/style.css" "$SITE_DIR/style.css" 2>/dev/null || true
