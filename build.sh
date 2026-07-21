@@ -16,9 +16,19 @@ BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
-echo "==> Fetching public repositories for $USERNAME..."
+# 2. Copy root assets FIRST so they are available for subfolders
+echo "------------------------------------------------"
+echo "==> Copying root assets..."
+if [ -d "$ASSETS_DIR" ]; then
+    for f in style.css favicon.png logo.png; do
+        if [ -f "$ASSETS_DIR/$f" ]; then
+            cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
+        fi
+    done
+fi
 
-# 2. Fetch public repositories
+# 3. Fetch public repositories
+echo "==> Fetching public repositories for $USERNAME..."
 REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories..."
@@ -44,10 +54,10 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
         
-        # Copy assets into each repo folder
-        [ -f "$SITE_DIR/style.css" ] && cp "$SITE_DIR/style.css" style.css
-        [ -f "$SITE_DIR/logo.png" ] && cp "$SITE_DIR/logo.png" logo.png
-        [ -f "$SITE_DIR/favicon.png" ] && cp "$SITE_DIR/favicon.png" favicon.png
+        # Copy assets safely into each repo subfolder
+        if [ -f "$SITE_DIR/style.css" ]; then cp "$SITE_DIR/style.css" style.css; fi
+        if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" logo.png; fi
+        if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
 
     # Copy last_commit file into repo subfolder
@@ -60,17 +70,6 @@ Build Date: $BUILD_TIME
 EOF
 
 done
-
-# 3. Copy root assets
-echo "------------------------------------------------"
-echo "==> Copying root assets..."
-if [ -d "$ASSETS_DIR" ]; then
-    for f in style.css favicon.png logo.png; do
-        if [ -f "$ASSETS_DIR/$f" ]; then
-            cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
-        fi
-    done
-fi
 
 # 4. Generate central stagit-index
 echo "------------------------------------------------"
