@@ -259,12 +259,16 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject UNIVERSAL SMART BACK NAVIGATION SCRIPT into EVERY generated HTML page
-# NOTE: delimiter changed from '#' to '§' because the injected JS contains
-# literal '#' characters (e.g. '#folder=', href="#") which broke sed's
-# s#...#...#g substitution ("unknown option to `s'"). '§' does not appear
-# anywhere in the injected script, so it's safe to use as the delimiter.
+# NOTE: delimiter changed from '#' to a single-byte control character (SOH,
+# \x01) because the injected JS contains literal '#' characters (e.g.
+# '#folder=', href="#") which broke sed's s#...#...#g substitution
+# ("unknown option to `s'"). GNU sed also requires the delimiter to be a
+# single-byte character, so a multi-byte char like '§' fails with
+# "delimiter character is not a single-byte character". \x01 never appears
+# in the injected script, so it's safe to use here.
+D=$'\x01'
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    "s§</body>§<script>\n\
+    "s${D}</body>${D}<script>\n\
 document.addEventListener('DOMContentLoaded', () => {\n\
     const path = window.location.pathname;\n\
     if (path === '/' || path.endsWith('/index.html') && !path.includes('/site/')) {\n\
@@ -318,13 +322,13 @@ document.addEventListener('DOMContentLoaded', () => {\n\
     }\n\
     firstHr.parentNode.insertBefore(container, firstHr.nextSibling);\n\
 });\n\
-</script>\n</body>§g"
+</script>\n</body>${D}g"
 
 # 6. Inject formatted multi-line build footer into EVERY generated HTML page
 FOOTER_HTML="<div id=\"build-info\">© <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> • modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    "s§</body>§$FOOTER_HTML\n</body>§g"
+    "s${D}</body>${D}$FOOTER_HTML\n</body>${D}g"
 
 # Copy CNAME if present
 if [ -f "$WORK_DIR/CNAME" ]; then
