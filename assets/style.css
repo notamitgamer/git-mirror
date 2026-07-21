@@ -1,8 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* Global Font & Reset */
+* {
+	box-sizing: border-box;
+}
+
 body {
 	color: #000;
 	background-color: #fff;
-	font-family: monospace;
-	max-width: 1100px;
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 14px;
 	margin: 0 auto;
 	padding: 12px 16px;
 }
@@ -10,6 +17,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
 	font-size: 1em;
 	margin: 0;
+	font-family: 'JetBrains Mono', monospace;
 }
 
 img, h1, h2 {
@@ -18,6 +26,15 @@ img, h1, h2 {
 
 img {
 	border: 0;
+}
+
+a {
+	color: #00f;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
 }
 
 a:target {
@@ -31,6 +48,7 @@ a.line {
 	text-decoration: none;
 }
 
+/* Code Blobs & Files */
 #blob a {
 	color: #555;
 }
@@ -40,15 +58,22 @@ a.line {
 	text-decoration: none;
 }
 
+/* Prevent text wrapping & keep straight horizontal lines */
+table {
+	border-collapse: collapse;
+	width: 100%;
+	display: block;
+	overflow-x: auto;
+	white-space: nowrap;
+}
+
 table thead td {
 	font-weight: bold;
 }
 
-table td {
-	padding: 0 0.4em;
-}
-
-#content table td {
+table td, table th {
+	padding: 2px 6px;
+	text-align: left;
 	vertical-align: top;
 	white-space: nowrap;
 }
@@ -59,13 +84,6 @@ table td {
 #log tr:hover td,
 #files tr:hover td {
 	background-color: #eee;
-}
-
-#index tr td:nth-child(2),
-#tags tr td:nth-child(3),
-#branches tr td:nth-child(3),
-#log tr td:nth-child(2) {
-	white-space: normal;
 }
 
 td.num {
@@ -80,11 +98,15 @@ hr {
 	border: 0;
 	border-top: 1px solid #555;
 	height: 1px;
+	margin: 12px 0;
 }
 
+/* Code & Diffs - Pure straight lines with scrollbar */
 pre {
-	font-family: monospace;
+	font-family: 'JetBrains Mono', monospace;
+	margin: 0;
 	overflow-x: auto;
+	white-space: pre;
 	-webkit-overflow-scrolling: touch;
 }
 
@@ -110,6 +132,7 @@ pre a.d:hover {
 	text-decoration: none;
 }
 
+/* System Dark Mode */
 @media (prefers-color-scheme: dark) {
 	body {
 		background-color: #000;
@@ -155,15 +178,5 @@ pre a.d:hover {
 	#log tr:hover td,
 	#files tr:hover td {
 		background-color: #111;
-	}
-}
-
-@media screen and (max-width: 680px) {
-	body {
-		padding: 8px 10px;
-		font-size: 13px;
-	}
-	table td {
-		padding: 2px 4px;
 	}
 }
