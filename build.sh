@@ -25,6 +25,10 @@ if [ -d "$ASSETS_DIR" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
         fi
     done
+    # Fallback for favicon.ico
+    if [ -f "$SITE_DIR/favicon.png" ]; then
+        cp "$SITE_DIR/favicon.png" "$SITE_DIR/favicon.ico"
+    fi
 fi
 
 # 3. Fetch public repositories
@@ -59,6 +63,64 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" logo.png; fi
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
+
+    # --- INJECT FOLDER TREE SCRIPT WITH SVG ICONS INTO files.html ---
+    if [ -f "$SITE_DIR/$REPO/files.html" ]; then
+        cat <<'EOF' >> "$SITE_DIR/$REPO/files.html"
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const table = document.querySelector('#files, #content table');
+    if (!table) return;
+
+    const rows = Array.from(table.querySelectorAll('tbody tr, tr')).slice(1);
+    const groups = {};
+
+    const svgClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M2 10h20"/></svg>`;
+    const svgOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
+
+    rows.forEach(row => {
+        const link = row.querySelector('td a');
+        if (!link) return;
+
+        const pathParts = link.textContent.trim().split('/');
+        if (pathParts.length > 1) {
+            const folder = pathParts.slice(0, -1).join('/');
+            const fileName = pathParts[pathParts.length - 1];
+
+            link.textContent = fileName;
+
+            if (!groups[folder]) groups[folder] = [];
+            groups[folder].push(row);
+        }
+    });
+
+    const tbody = table.querySelector('tbody') || table;
+    
+    Object.keys(groups).sort().forEach(folder => {
+        const headerRow = document.createElement('tr');
+        headerRow.classList.add('folder-header');
+        
+        let expanded = true;
+        
+        const renderHeader = () => {
+            const icon = expanded ? svgOpen : svgClosed;
+            headerRow.innerHTML = `<td colspan="4">${icon}<span style="vertical-align: middle;">${folder}/</span> <span style="font-weight:normal;font-size:0.85em;opacity:0.7;vertical-align: middle;">(${groups[folder].length} files)</span></td>`;
+        };
+
+        renderHeader();
+
+        headerRow.addEventListener('click', () => {
+            expanded = !expanded;
+            groups[folder].forEach(r => r.style.display = expanded ? '' : 'none');
+            renderHeader();
+        });
+
+        tbody.insertBefore(headerRow, groups[folder][0]);
+    });
+});
+</script>
+EOF
+    fi
 
     # Copy last_commit file into repo subfolder
     cat <<EOF > "$SITE_DIR/$REPO/last_commit"
