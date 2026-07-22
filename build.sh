@@ -8,7 +8,6 @@ WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
-META_FILE="$WORK_DIR/repo_meta.tsv"   # NEW: name<TAB>lang<TAB>updated, written inside the loop
 
 # Site base URL used for sitemap.xml (CNAME wins, else github.io URL)
 if [ -f "$WORK_DIR/CNAME" ]; then
@@ -23,9 +22,8 @@ MIRROR_FULL_HASH=$(git -C "$WORK_DIR" rev-parse HEAD 2>/dev/null || echo "unknow
 MIRROR_COMMIT_DATE=$(git -C "$WORK_DIR" log -1 --format="%cd" --date=iso-strict 2>/dev/null || echo "unknown")
 BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-rm -rf "$REPOS_DIR" "$SITE_DIR" "$META_FILE"
+rm -rf "$REPOS_DIR" "$SITE_DIR"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
-touch "$META_FILE"
 
 # 2. Copy root assets FIRST
 echo "------------------------------------------------"
@@ -42,7 +40,7 @@ if [ -d "$ASSETS_DIR" ]; then
     fi
 fi
 
-# --- NEW: lightweight, dependency-free markdown -> HTML converter for README rendering ---
+# --- lightweight, dependency-free markdown -> HTML converter for README rendering ---
 # Not a full CommonMark implementation on purpose (keeps the build fast and the page light):
 # supports headings, bold/italic, inline code, links, fenced code blocks, and lists/paragraphs.
 md_to_html() {
@@ -85,11 +83,12 @@ md_to_html() {
         -e 's/\[([^]]+)\]\(([^)]+)\)/<a href="\2" target="_blank">\1<\/a>/g'
 }
 
-# --- NEW: tiny dependency-free commit-activity sparkline (SVG) for repo stats ---
+# --- tiny dependency-free commit-activity bar graph (SVG), left-to-right, responsive ---
+# Used only on the per-repo activity.html page (not injected above file listings anymore).
 generate_stats_svg() {
     local git_dir="$1"
     local counts
-    counts=$(git -C "$git_dir" log --format=%cd --date=format:%G-W%V 2>/dev/null | sort | uniq -c | tail -12)
+    counts=$(git -C "$git_dir" log --format=%cd --date=format:%G-W%V 2>/dev/null | sort | uniq -c | tail -20)
     [ -z "$counts" ] && { echo ""; return; }
 
     local max=1
@@ -98,12 +97,18 @@ generate_stats_svg() {
         if [ "$c" -gt "$max" ]; then max=$c; fi
     done <<< "$counts"
 
-    local svg="<svg viewBox=\"0 0 240 40\" xmlns=\"http://www.w3.org/2000/svg\" class=\"stats-svg\" aria-label=\"commit activity, last 12 weeks\">"
+    local bar_count
+    bar_count=$(echo "$counts" | wc -l)
+    local svg_width=$(( bar_count * 20 ))
+    [ "$svg_width" -lt 40 ] && svg_width=40
+
+    # width/height are percentage-based via CSS so it scales left-to-right on any screen size
+    local svg="<svg viewBox=\"0 0 ${svg_width} 60\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" class=\"stats-svg\" aria-label=\"commit activity, last ${bar_count} weeks\">"
     local x=0
     while read -r c w; do
         [ -z "$c" ] && continue
-        local h=$(( c * 34 / max )); [ "$h" -lt 2 ] && h=2
-        local y=$(( 40 - h ))
+        local h=$(( c * 52 / max )); [ "$h" -lt 2 ] && h=2
+        local y=$(( 60 - h ))
         svg="$svg<rect x=\"$x\" y=\"$y\" width=\"16\" height=\"$h\"><title>${w}: ${c} commit(s)</title></rect>"
         x=$(( x + 20 ))
     done <<< "$counts"
@@ -113,17 +118,13 @@ generate_stats_svg() {
 
 # 3. Fetch public repositories
 echo "==> Fetching public repositories for $USERNAME..."
-# NEW: also pull pushedAt + primaryLanguage for the "last updated" and "language" badges
-REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description,pushedAt,primaryLanguage -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
+REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories..."
 
 echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     REPO=$(echo "$repo_info" | jq -r '.name')
     DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
-    PUSHED_AT=$(echo "$repo_info" | jq -r '.pushedAt // ""')
-    PUSHED_DATE=$(date -u -d "$PUSHED_AT" +"%Y-%m-%d" 2>/dev/null || echo "$PUSHED_AT")
-    LANG=$(echo "$repo_info" | jq -r '.primaryLanguage.name // "N/A"')
 
     # Truncate description if it's longer than 30 characters
     if [ ${#DESC} -gt 30 ]; then
@@ -142,9 +143,6 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
 
     mkdir -p "$SITE_DIR/$REPO"
 
-    # record metadata for later badge injection into the central index (subshell-safe: append to file)
-    printf "%s\t%s\t%s\n" "$REPO" "$LANG" "$PUSHED_DATE" >> "$META_FILE"
-
     # Generate stagit HTML pages
     (
         cd "$SITE_DIR/$REPO"
@@ -156,7 +154,7 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
 
-    # --- NEW: README rendering ---------------------------------------------------
+    # --- README rendering ---------------------------------------------------
     README_SRC=""
     for candidate in README.md README.MD Readme.md README; do
         if git -C "$REPOS_DIR/$REPO.git" cat-file -e "HEAD:$candidate" 2>/dev/null; then
@@ -176,55 +174,62 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         } > "$SITE_DIR/$REPO/readme.html"
         rm -f "$WORK_DIR/_readme_tmp.md"
     fi
-
-    # --- NEW: repo stats sparkline, added near the top of log.html ---------------
-    STATS_SVG=$(generate_stats_svg "$REPOS_DIR/$REPO.git")
-    if [ -n "$STATS_SVG" ] && [ -f "$SITE_DIR/$REPO/log.html" ]; then
-        STATS_BLOCK="<div id=\"repo-stats\"><span class=\"stats-label\">commit activity (12w)</span>$STATS_SVG</div>"
-        # insert right after the opening <body> tag
-        python3 - "$SITE_DIR/$REPO/log.html" "$STATS_BLOCK" <<'PYEOF'
-import sys
-path, block = sys.argv[1], sys.argv[2]
-with open(path, "r", encoding="utf-8") as f:
-    html = f.read()
-html = html.replace("<body>", "<body>" + block, 1)
-with open(path, "w", encoding="utf-8") as f:
-    f.write(html)
-PYEOF
+    if [ -n "$README_SRC" ] && [ -f "$SITE_DIR/$REPO/index.html" ]; then
+        sed -i "s|</body>|<div class=\"back-nav\"><a href=\"readme.html\">README</a></div>\n</body>|" "$SITE_DIR/$REPO/index.html"
     fi
 
-    # --- NEW: readme link + "copy clone url" text button on the repo's own index.html
-    if [ -f "$SITE_DIR/$REPO/index.html" ]; then
-        if [ -n "$README_SRC" ]; then
-            sed -i "s|</body>|<div class=\"back-nav\"><a href=\"readme.html\">README</a></div>\n</body>|" "$SITE_DIR/$REPO/index.html"
+    # --- detect LICENSE file for activity page nav ---------------------------
+    LICENSE_SRC=""
+    for candidate in LICENSE LICENSE.md LICENSE.txt COPYING; do
+        if git -C "$REPOS_DIR/$REPO.git" cat-file -e "HEAD:$candidate" 2>/dev/null; then
+            LICENSE_SRC="$candidate"
+            break
         fi
-        cat <<'EOF' >> "$SITE_DIR/$REPO/index.html"
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Find the row/cell that contains the clone URL text and append a plain-text copy link
-    const candidates = Array.from(document.querySelectorAll('td, pre'));
-    const cloneCell = candidates.find(el => /git clone/i.test(el.textContent));
-    if (!cloneCell) return;
-    const urlMatch = cloneCell.textContent.match(/https?:\/\/\S+\.git/);
-    if (!urlMatch) return;
-    const url = urlMatch[0];
-    const btn = document.createElement('a');
-    btn.href = '#';
-    btn.textContent = '[copy]';
-    btn.style.marginLeft = '8px';
-    btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        navigator.clipboard.writeText(url).then(() => {
-            const original = btn.textContent;
-            btn.textContent = '[copied]';
-            setTimeout(() => { btn.textContent = original; }, 1200);
-        });
-    });
-    cloneCell.appendChild(btn);
-});
-</script>
-EOF
+    done
+
+    # --- add an "Activity" link into stagit's own nav bar on every generated page ---
+    # (Log | Files | Refs | README | LICENSE | Activity)
+    # Matches the existing "Refs" link (with whatever relative path prefix it already has)
+    # and appends the Activity link right after it, using the same prefix.
+    (
+        cd "$SITE_DIR/$REPO"
+        find . -name "*.html" -print0 | xargs -0 sed -i -E \
+            's#(<a href="([^"]*)refs\.html">Refs</a>)#\1 | <a href="\2activity.html">Activity</a>#'
+    )
+
+    # --- NEW activity.html page: clone url, github link, last commit, repo size, commit graph ---
+    LAST_COMMIT_HASH=$(git -C "$REPOS_DIR/$REPO.git" log -1 --format="%H" 2>/dev/null || echo "unknown")
+    LAST_COMMIT_SHORT=$(git -C "$REPOS_DIR/$REPO.git" log -1 --format="%h" 2>/dev/null || echo "unknown")
+    LAST_COMMIT_TIME=$(git -C "$REPOS_DIR/$REPO.git" log -1 --format="%cd" --date=iso-strict 2>/dev/null || echo "unknown")
+    REPO_SIZE=$(du -sh "$REPOS_DIR/$REPO.git" 2>/dev/null | cut -f1)
+    [ -z "$REPO_SIZE" ] && REPO_SIZE="unknown"
+    ACTIVITY_SVG=$(generate_stats_svg "$REPOS_DIR/$REPO.git")
+
+    NAV_LINKS="<a href=\"log.html\">Log</a> | <a href=\"files.html\">Files</a> | <a href=\"refs.html\">Refs</a>"
+    if [ -n "$README_SRC" ]; then
+        NAV_LINKS="$NAV_LINKS | <a href=\"readme.html\">README</a>"
     fi
+    if [ -n "$LICENSE_SRC" ]; then
+        NAV_LINKS="$NAV_LINKS | <a href=\"file/${LICENSE_SRC}.html\">LICENSE</a>"
+    fi
+    NAV_LINKS="$NAV_LINKS | Activity"
+
+    {
+        echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+        echo "<title>$REPO - Activity</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
+        echo "<h1>$REPO</h1><p class=\"desc\">$DESC</p>"
+        echo "<p>$NAV_LINKS</p><hr>"
+        echo "<div id=\"activity-meta\">"
+        echo "<p>Clone: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p>"
+        echo "<p>GitHub: <a href=\"https://github.com/$USERNAME/$REPO\" target=\"_blank\">github.com/$USERNAME/$REPO</a></p>"
+        echo "<p>Last commit: <a href=\"https://github.com/$USERNAME/$REPO/commit/$LAST_COMMIT_HASH\" target=\"_blank\">$LAST_COMMIT_SHORT</a> ($LAST_COMMIT_TIME)</p>"
+        echo "<p>Repository size (approx): $REPO_SIZE</p>"
+        echo "</div>"
+        if [ -n "$ACTIVITY_SVG" ]; then
+            echo "<div id=\"activity-graph\"><span class=\"stats-label\">commit activity</span><div class=\"activity-graph-wrap\">$ACTIVITY_SVG</div></div>"
+        fi
+        echo "</body></html>"
+    } > "$SITE_DIR/$REPO/activity.html"
 
     # --- INJECT RECURSIVE FOLDER TREE & HASH NAV SCRIPT INTO files.html ---
     if [ -f "$SITE_DIR/$REPO/files.html" ]; then
@@ -273,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rows.forEach(r => r.remove());
 
-    // --- NEW: breadcrumb bar, inserted directly above the file table ---
+    // breadcrumb bar, inserted directly above the file table
     const breadcrumb = document.createElement('div');
     breadcrumb.id = 'breadcrumb-nav';
     table.parentNode.insertBefore(breadcrumb, table);
@@ -420,6 +425,47 @@ document.addEventListener('DOMContentLoaded', () => {
 EOF
     fi
 
+    # --- NEW: static breadcrumb on every individual file page (file/**/*.html) ---
+    # stagit mirrors the repo's folder structure under file/, e.g.
+    # file/semester_1/assignment-primary/assignment-p-01.c.html
+    # These pages had no breadcrumb before; this adds one that links back to
+    # files.html (root) and to each intermediate folder via the same #folder= hash
+    # the files.html script already understands.
+    python3 - "$SITE_DIR/$REPO" <<'PYEOF'
+import os, sys
+
+repo_dir = sys.argv[1]
+file_root = os.path.join(repo_dir, "file")
+if os.path.isdir(file_root):
+    for dirpath, _dirnames, filenames in os.walk(file_root):
+        for fname in filenames:
+            if not fname.endswith(".html"):
+                continue
+            full_path = os.path.join(dirpath, fname)
+            rel_to_repo = os.path.relpath(full_path, repo_dir)  # file/foo/bar/baz.c.html
+            parts = rel_to_repo.split(os.sep)                   # ['file','foo','bar','baz.c.html']
+            depth = len(parts) - 1                              # levels below repo root
+            up = "../" * depth
+            folder_parts = parts[1:-1]                          # ['foo','bar']
+            display_name = parts[-1][:-5] if parts[-1].endswith(".html") else parts[-1]
+
+            crumbs = [f'<a href="{up}files.html">root</a>']
+            acc = ""
+            for part in folder_parts:
+                acc = f"{acc}/{part}" if acc else part
+                crumbs.append(f'<a href="{up}files.html#folder={acc}">{part}</a>')
+            crumbs.append(f'<span>{display_name}</span>')
+
+            breadcrumb_html = '<div id="file-breadcrumb">' + ' / '.join(crumbs) + '</div>'
+
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                html = f.read()
+            if "<body>" in html and 'id="file-breadcrumb"' not in html:
+                html = html.replace("<body>", "<body>" + breadcrumb_html, 1)
+                with open(full_path, "w", encoding="utf-8") as f:
+                    f.write(html)
+PYEOF
+
     # Copy last_commit file into repo subfolder
     cat <<EOF > "$SITE_DIR/$REPO/last_commit"
 Host: git.amit.is-a.dev
@@ -435,48 +481,6 @@ done
 echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
-
-# --- NEW: inject language + last-updated badges and the search bar into the central index ---
-if [ -f "$META_FILE" ] && [ -f "$SITE_DIR/index.html" ]; then
-    while IFS=$'\t' read -r REPO LANG PUSHED_DATE; do
-        [ -z "$REPO" ] && continue
-        BADGE="<span class=\"badge lang-badge\">${LANG}</span><span class=\"badge updated-badge\">${PUSHED_DATE}</span>"
-        # stagit-index links repos as href="REPO/", insert badges right after that anchor's closing tag on the same line
-        sed -i "s|\(<a href=\"${REPO}/\"[^<]*</a>\)|\1 ${BADGE}|" "$SITE_DIR/index.html"
-    done < "$META_FILE"
-fi
-
-python3 - "$SITE_DIR/index.html" <<'PYEOF'
-import sys
-path = sys.argv[1]
-with open(path, "r", encoding="utf-8") as f:
-    html = f.read()
-
-search_block = '''<div id="repo-search"><input type="text" id="repo-search-input" placeholder="filter repositories..." autocomplete="off"></div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('repo-search-input');
-    const table = document.querySelector('#index table, table');
-    if (!input || !table) return;
-    const rows = Array.from(table.querySelectorAll('tbody tr, tr')).filter(r => r.querySelector('td a'));
-    input.addEventListener('input', () => {
-        const q = input.value.toLowerCase();
-        rows.forEach(r => {
-            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
-        });
-    });
-});
-</script>
-'''
-
-if "<body>" in html:
-    html = html.replace("<body>", "<body>" + search_block, 1)
-else:
-    html = search_block + html
-
-with open(path, "w", encoding="utf-8") as f:
-    f.write(html)
-PYEOF
 
 # Create root last_commit file
 cat <<EOF > "$SITE_DIR/last_commit"
@@ -503,7 +507,7 @@ echo "==> Injecting mobile viewport meta tags..."
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     's#<head>#<head>\n\t<meta name="viewport" content="width=device-width, initial-scale=1">#'
 
-# --- NEW: sitemap.xml ---
+# --- sitemap.xml ---
 echo "------------------------------------------------"
 echo "==> Generating sitemap.xml..."
 {
@@ -515,7 +519,7 @@ echo "==> Generating sitemap.xml..."
     echo '</urlset>'
 } > "$SITE_DIR/sitemap.xml"
 
-# --- NEW: 404.html (styled to match the site) ---
+# --- 404.html (styled to match the site) ---
 echo "==> Generating 404.html..."
 cat <<EOF > "$SITE_DIR/404.html"
 <!DOCTYPE html>
