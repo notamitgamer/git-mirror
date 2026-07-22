@@ -40,51 +40,8 @@ if [ -d "$ASSETS_DIR" ]; then
     fi
 fi
 
-# --- lightweight, dependency-free markdown -> HTML converter for README rendering ---
-# Not a full CommonMark implementation on purpose (keeps the build fast and the page light):
-# supports headings, bold/italic, inline code, links, fenced code blocks, and lists/paragraphs.
-md_to_html() {
-    local input_file="$1"
-    sed -E \
-        -e 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' \
-        -e 's/```/\x01CODEFENCE\x01/g' \
-        "$input_file" | \
-    awk '
-    BEGIN { in_code=0; in_list=0 }
-    {
-        line=$0
-        if (line ~ /\x01CODEFENCE\x01/) {
-            if (in_code==0) { print "<pre><code>"; in_code=1 }
-            else { print "</code></pre>"; in_code=0 }
-            next
-        }
-        if (in_code==1) { print; next }
-
-        if (line ~ /^### /) { sub(/^### /,""); print "<h3>" line "</h3>"; next }
-        if (line ~ /^## /)  { sub(/^## /,"");  print "<h2>" line "</h2>"; next }
-        if (line ~ /^# /)   { sub(/^# /,"");   print "<h1>" line "</h1>"; next }
-
-        if (line ~ /^[-*] /) {
-            if (in_list==0) { print "<ul>"; in_list=1 }
-            sub(/^[-*] /,"")
-            print "<li>" line "</li>"
-            next
-        } else if (in_list==1) { print "</ul>"; in_list=0 }
-
-        if (line == "") { next }
-        print "<p>" line "</p>"
-    }
-    END { if(in_list==1) print "</ul>"; if(in_code==1) print "</code></pre>" }
-    ' | \
-    sed -E \
-        -e 's/`([^`]+)`/<code>\1<\/code>/g' \
-        -e 's/\*\*([^*]+)\*\*/<b>\1<\/b>/g' \
-        -e 's/\*([^*]+)\*/<i>\1<\/i>/g' \
-        -e 's/\[([^]]+)\]\(([^)]+)\)/<a href="\2" target="_blank">\1<\/a>/g'
-}
-
 # --- tiny dependency-free commit-activity bar graph (SVG), left-to-right, responsive ---
-# Used only on the per-repo activity.html page (not injected above file listings anymore).
+# Used only on the per-repo activity.html page (not injected above file listings).
 generate_stats_svg() {
     local git_dir="$1"
     local counts
@@ -154,41 +111,9 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
 
-    # --- README rendering ---------------------------------------------------
-    README_SRC=""
-    for candidate in README.md README.MD Readme.md README; do
-        if git -C "$REPOS_DIR/$REPO.git" cat-file -e "HEAD:$candidate" 2>/dev/null; then
-            README_SRC="$candidate"
-            break
-        fi
-    done
-    if [ -n "$README_SRC" ]; then
-        git -C "$REPOS_DIR/$REPO.git" show "HEAD:$README_SRC" > "$WORK_DIR/_readme_tmp.md" 2>/dev/null || true
-        {
-            echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-            echo "<title>$REPO - README</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
-            echo "<div class=\"back-nav\"><a href=\"index.html\">← back to $REPO</a></div>"
-            echo "<div id=\"readme-content\">"
-            md_to_html "$WORK_DIR/_readme_tmp.md"
-            echo "</div></body></html>"
-        } > "$SITE_DIR/$REPO/readme.html"
-        rm -f "$WORK_DIR/_readme_tmp.md"
-    fi
-    if [ -n "$README_SRC" ] && [ -f "$SITE_DIR/$REPO/index.html" ]; then
-        sed -i "s|</body>|<div class=\"back-nav\"><a href=\"readme.html\">README</a></div>\n</body>|" "$SITE_DIR/$REPO/index.html"
-    fi
-
-    # --- detect LICENSE file for activity page nav ---------------------------
-    LICENSE_SRC=""
-    for candidate in LICENSE LICENSE.md LICENSE.txt COPYING; do
-        if git -C "$REPOS_DIR/$REPO.git" cat-file -e "HEAD:$candidate" 2>/dev/null; then
-            LICENSE_SRC="$candidate"
-            break
-        fi
-    done
-
     # --- add an "Activity" link into stagit's own nav bar on every generated page ---
-    # (Log | Files | Refs | README | LICENSE | Activity)
+    # (Log | Files | Refs | Activity | README | LICENSE -- README/LICENSE are added
+    # natively by stagit itself when those files exist, we only insert Activity)
     # Matches the existing "Refs" link (with whatever relative path prefix it already has)
     # and appends the Activity link right after it, using the same prefix.
     (
@@ -205,14 +130,7 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     [ -z "$REPO_SIZE" ] && REPO_SIZE="unknown"
     ACTIVITY_SVG=$(generate_stats_svg "$REPOS_DIR/$REPO.git")
 
-    NAV_LINKS="<a href=\"log.html\">Log</a> | <a href=\"files.html\">Files</a> | <a href=\"refs.html\">Refs</a>"
-    if [ -n "$README_SRC" ]; then
-        NAV_LINKS="$NAV_LINKS | <a href=\"readme.html\">README</a>"
-    fi
-    if [ -n "$LICENSE_SRC" ]; then
-        NAV_LINKS="$NAV_LINKS | <a href=\"file/${LICENSE_SRC}.html\">LICENSE</a>"
-    fi
-    NAV_LINKS="$NAV_LINKS | Activity"
+    NAV_LINKS="<a href=\"log.html\">Log</a> | <a href=\"files.html\">Files</a> | <a href=\"refs.html\">Refs</a> | Activity"
 
     {
         echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
@@ -220,8 +138,8 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         echo "<h1>$REPO</h1><p class=\"desc\">$DESC</p>"
         echo "<p>$NAV_LINKS</p><hr>"
         echo "<div id=\"activity-meta\">"
-        echo "<p>Clone: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p>"
         echo "<p>GitHub: <a href=\"https://github.com/$USERNAME/$REPO\" target=\"_blank\">github.com/$USERNAME/$REPO</a></p>"
+        echo "<p>Clone: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p>"
         echo "<p>Last commit: <a href=\"https://github.com/$USERNAME/$REPO/commit/$LAST_COMMIT_HASH\" target=\"_blank\">$LAST_COMMIT_SHORT</a> ($LAST_COMMIT_TIME)</p>"
         echo "<p>Repository size (approx): $REPO_SIZE</p>"
         echo "</div>"
@@ -425,14 +343,15 @@ document.addEventListener('DOMContentLoaded', () => {
 EOF
     fi
 
-    # --- NEW: static breadcrumb on every individual file page (file/**/*.html) ---
+    # --- static breadcrumb on every individual file page (file/**/*.html) ---
     # stagit mirrors the repo's folder structure under file/, e.g.
     # file/semester_1/assignment-primary/assignment-p-01.c.html
-    # These pages had no breadcrumb before; this adds one that links back to
-    # files.html (root) and to each intermediate folder via the same #folder= hash
-    # the files.html script already understands.
+    # Placed AFTER stagit's own header/nav block and BEFORE the file content:
+    # prefers inserting right before <div id="content">; falls back to right
+    # after the header's closing <hr/> if that div isn't found; falls back to
+    # right after <body> only as a last resort.
     python3 - "$SITE_DIR/$REPO" <<'PYEOF'
-import os, sys
+import os, re, sys
 
 repo_dir = sys.argv[1]
 file_root = os.path.join(repo_dir, "file")
@@ -460,10 +379,21 @@ if os.path.isdir(file_root):
 
             with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                 html = f.read()
-            if "<body>" in html and 'id="file-breadcrumb"' not in html:
-                html = html.replace("<body>", "<body>" + breadcrumb_html, 1)
-                with open(full_path, "w", encoding="utf-8") as f:
-                    f.write(html)
+
+            if 'id="file-breadcrumb"' in html:
+                continue
+
+            if '<div id="content">' in html:
+                html = html.replace('<div id="content">', breadcrumb_html + '<div id="content">', 1)
+            elif re.search(r'<hr\s*/?>', html):
+                html = re.sub(r'(<hr\s*/?>)', r'\1' + breadcrumb_html, html, count=1)
+            elif '<body>' in html:
+                html = html.replace('<body>', '<body>' + breadcrumb_html, 1)
+            else:
+                continue
+
+            with open(full_path, "w", encoding="utf-8") as f:
+                f.write(html)
 PYEOF
 
     # Copy last_commit file into repo subfolder
