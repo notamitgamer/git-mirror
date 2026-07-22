@@ -1,18 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
-
 /* Global Font & Reset */
 * {
 	box-sizing: border-box;
 }
-
 * {
   -webkit-tap-highlight-color: transparent;
 }
-
 button, a, input, textarea {
   outline: none;
 }
-
 body {
 	color: #000000;
 	background-color: #ffffff;
@@ -21,66 +17,54 @@ body {
 	margin: 0 auto;
 	padding: 12px 16px;
 }
-
 h1, h2, h3, h4, h5, h6 {
 	font-size: 1em;
 	margin: 0;
 	font-family: 'JetBrains Mono', monospace;
 	color: #000000;
 }
-
 img, h1, h2 {
 	vertical-align: middle;
 }
-
 img {
 	border: 0;
 }
-
 a {
 	color: #0000ff;
 	text-decoration: none;
 }
-
 a:hover {
 	text-decoration: underline;
 }
-
 a:target {
 	background-color: #dddddd;
 }
-
 a.d,
 a.h,
 a.i,
 a.line {
 	text-decoration: none;
 }
-
 /* Top Back Navigation Link */
 .back-nav {
 	margin-bottom: 12px;
 	font-size: 13px;
 	font-weight: 700;
 }
-
 .back-nav a {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	color: #0000ff;
 }
-
 /* Code Blobs & Files */
 #blob a {
 	color: #444444;
 }
-
 #blob a:hover {
 	color: #0000ff;
 	text-decoration: none;
 }
-
 /* Prevent text wrapping & keep straight horizontal lines */
 table {
 	border-collapse: collapse;
@@ -89,19 +73,16 @@ table {
 	overflow-x: auto;
 	white-space: nowrap;
 }
-
 table thead td {
 	font-weight: bold;
 	color: #000000;
 }
-
 table td, table th {
 	padding: 2px 6px;
 	text-align: left;
 	vertical-align: top;
 	white-space: nowrap;
 }
-
 #branches tr:hover td,
 #tags tr:hover td,
 #index tr:hover td,
@@ -109,22 +90,18 @@ table td, table th {
 #files tr:hover td {
 	background-color: #f0f0f0;
 }
-
 td.num {
 	text-align: right;
 }
-
 .desc {
 	color: #444444;
 }
-
 hr {
 	border: 0;
 	border-top: 1px solid #000000;
 	height: 1px;
 	margin: 12px 0;
 }
-
 /* Code & Diffs */
 pre {
 	font-family: 'JetBrains Mono', monospace;
@@ -133,29 +110,24 @@ pre {
 	white-space: pre;
 	-webkit-overflow-scrolling: touch;
 }
-
 pre a.h {
 	color: #0000aa;
 }
-
 .A,
 span.i,
 pre a.i {
 	color: #007700;
 }
-
 .D,
 span.d,
 pre a.d {
 	color: #ee0000;
 }
-
 pre a.h:hover,
 pre a.i:hover,
 pre a.d:hover {
 	text-decoration: none;
 }
-
 /* Build metadata footer */
 #build-info {
 	margin-top: 20px;
@@ -165,7 +137,6 @@ pre a.d:hover {
 	color: #666666;
 	line-height: 1.6;
 }
-
 /* Custom Folder Tree Styles */
 tr.folder-header {
 	cursor: pointer;
@@ -175,14 +146,85 @@ tr.folder-header {
 	-webkit-tap-highlight-color: transparent;
 	outline: none;
 }
-
 tr.folder-header:hover {
 	background-color: #e5e5e5 !important;
 }
-
 tr.folder-header td {
 	padding: 6px 8px !important;
 	border-bottom: 1px solid #cccccc;
+}
+
+/* ===== NEW: search bar (central index) ===== */
+#repo-search {
+	margin-bottom: 12px;
+}
+#repo-search-input {
+	width: 100%;
+	max-width: 320px;
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 13px;
+	padding: 5px 8px;
+	border: 1px solid #000000;
+	background-color: #ffffff;
+	color: #000000;
+}
+
+/* ===== NEW: language / last-updated badges ===== */
+.badge {
+	display: inline-block;
+	font-size: 10px;
+	font-weight: 700;
+	padding: 1px 5px;
+	margin-left: 6px;
+	border: 1px solid #000000;
+	white-space: nowrap;
+}
+
+/* ===== NEW: breadcrumb nav (files.html) ===== */
+#breadcrumb-nav {
+	margin-bottom: 10px;
+	font-size: 12px;
+	font-weight: 700;
+}
+#breadcrumb-nav a {
+	color: #0000ff;
+}
+
+/* ===== NEW: repo stats sparkline (log.html) ===== */
+#repo-stats {
+	margin-bottom: 14px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.stats-label {
+	font-size: 11px;
+	color: #666666;
+}
+.stats-svg rect {
+	fill: #444444;
+}
+
+/* ===== NEW: rendered README ===== */
+#readme-content {
+	max-width: 780px;
+	line-height: 1.5;
+}
+#readme-content pre {
+	background-color: #f4f4f4;
+	padding: 8px;
+	overflow-x: auto;
+}
+#readme-content code {
+	background-color: #f4f4f4;
+	padding: 0 3px;
+}
+#readme-content h1, #readme-content h2, #readme-content h3 {
+	margin: 14px 0 6px 0;
+}
+#readme-content ul {
+	margin: 4px 0;
+	padding-left: 20px;
 }
 
 /* System Dark Mode - TRUE OLED BLACK (#000000) */
@@ -247,5 +289,27 @@ tr.folder-header td {
 	}
 	tr.folder-header td {
 		border-bottom-color: #222222;
+	}
+	#repo-search-input {
+		background-color: #000000;
+		color: #e0e0e0;
+		border-color: #444444;
+	}
+	.badge {
+		border-color: #444444;
+		color: #cccccc;
+	}
+	#breadcrumb-nav a {
+		color: #56c8ff;
+	}
+	.stats-svg rect {
+		fill: #999999;
+	}
+	.stats-label {
+		color: #888888;
+	}
+	#readme-content pre,
+	#readme-content code {
+		background-color: #0d0d0d;
 	}
 }
