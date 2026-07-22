@@ -130,7 +130,8 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     [ -z "$REPO_SIZE" ] && REPO_SIZE="unknown"
     ACTIVITY_SVG=$(generate_stats_svg "$REPOS_DIR/$REPO.git")
 
-    NAV_LINKS="[<a href=\"files.html\">← Root</a>] | Activity"
+    BACK_ARROW_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-icon lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>'
+    NAV_LINKS="[<a href=\"files.html\" class=\"nav-arrow\">${BACK_ARROW_SVG} Root</a>] | Activity"
 
     {
         echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
