@@ -139,7 +139,7 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         echo "<h1>$REPO</h1><p class=\"desc\">$DESC</p>"
         echo "<p>$NAV_LINKS</p><hr>"
         echo "<div id=\"activity-meta\">"
-		echo "<h2>Activity record of \'<u>$USERNAME/$REPO</u>\'</h2><br>"
+		echo "<h2>Activity record of '<u>$USERNAME/$REPO</u>'</h2><br>"
         echo "<p>GitHub: <a href=\"https://github.com/$USERNAME/$REPO\" target=\"_blank\">github.com/$USERNAME/$REPO</a></p>"
         echo "<p>Clone: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p><br>"
         echo "<p>Last commit: <a href=\"https://github.com/$USERNAME/$REPO/commit/$LAST_COMMIT_HASH\" target=\"_blank\">$LAST_COMMIT_SHORT</a> ($LAST_COMMIT_TIME)</p>"
