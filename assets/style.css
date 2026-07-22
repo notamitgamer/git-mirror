@@ -154,33 +154,7 @@ tr.folder-header td {
 	border-bottom: 1px solid #cccccc;
 }
 
-/* ===== NEW: search bar (central index) ===== */
-#repo-search {
-	margin-bottom: 12px;
-}
-#repo-search-input {
-	width: 100%;
-	max-width: 320px;
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 13px;
-	padding: 5px 8px;
-	border: 1px solid #000000;
-	background-color: #ffffff;
-	color: #000000;
-}
-
-/* ===== NEW: language / last-updated badges ===== */
-.badge {
-	display: inline-block;
-	font-size: 10px;
-	font-weight: 700;
-	padding: 1px 5px;
-	margin-left: 6px;
-	border: 1px solid #000000;
-	white-space: nowrap;
-}
-
-/* ===== NEW: breadcrumb nav (files.html) ===== */
+/* ===== breadcrumb nav on files.html (JS-driven, folder tree view) ===== */
 #breadcrumb-nav {
 	margin-bottom: 10px;
 	font-size: 12px;
@@ -190,22 +164,20 @@ tr.folder-header td {
 	color: #0000ff;
 }
 
-/* ===== NEW: repo stats sparkline (log.html) ===== */
-#repo-stats {
-	margin-bottom: 14px;
-	display: flex;
-	align-items: center;
-	gap: 10px;
+/* ===== breadcrumb on individual file pages (file/**/*.html, static) ===== */
+#file-breadcrumb {
+	margin-bottom: 10px;
+	font-size: 12px;
+	font-weight: 700;
 }
-.stats-label {
-	font-size: 11px;
-	color: #666666;
+#file-breadcrumb a {
+	color: #0000ff;
 }
-.stats-svg rect {
-	fill: #444444;
+#file-breadcrumb span {
+	color: #444444;
 }
 
-/* ===== NEW: rendered README ===== */
+/* ===== rendered README ===== */
 #readme-content {
 	max-width: 780px;
 	line-height: 1.5;
@@ -225,6 +197,36 @@ tr.folder-header td {
 #readme-content ul {
 	margin: 4px 0;
 	padding-left: 20px;
+}
+
+/* ===== activity.html: clone/github/last-commit/size + commit graph ===== */
+#activity-meta p {
+	margin: 4px 0;
+}
+#activity-meta code {
+	background-color: #f4f4f4;
+	padding: 1px 4px;
+}
+#activity-graph {
+	margin-top: 16px;
+}
+.stats-label {
+	display: block;
+	font-size: 11px;
+	color: #666666;
+	margin-bottom: 6px;
+}
+.activity-graph-wrap {
+	width: 100%;
+	overflow-x: hidden;
+}
+.stats-svg {
+	width: 100%;
+	height: 60px;
+	display: block;
+}
+.stats-svg rect {
+	fill: #444444;
 }
 
 /* System Dark Mode - TRUE OLED BLACK (#000000) */
@@ -290,26 +292,22 @@ tr.folder-header td {
 	tr.folder-header td {
 		border-bottom-color: #222222;
 	}
-	#repo-search-input {
-		background-color: #000000;
-		color: #e0e0e0;
-		border-color: #444444;
-	}
-	.badge {
-		border-color: #444444;
-		color: #cccccc;
-	}
-	#breadcrumb-nav a {
+	#breadcrumb-nav a,
+	#file-breadcrumb a {
 		color: #56c8ff;
+	}
+	#file-breadcrumb span {
+		color: #999999;
+	}
+	#readme-content pre,
+	#readme-content code,
+	#activity-meta code {
+		background-color: #0d0d0d;
 	}
 	.stats-svg rect {
 		fill: #999999;
 	}
 	.stats-label {
 		color: #888888;
-	}
-	#readme-content pre,
-	#readme-content code {
-		background-color: #0d0d0d;
 	}
 }
