@@ -57,6 +57,18 @@ a.line {
 	gap: 4px;
 	color: #0000ff;
 }
+/* Same arrow-alignment fix as .back-nav a, but usable inline (e.g. inside a
+   <p> nav line) without needing the block-level .back-nav wrapper */
+.nav-arrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+.nav-arrow svg {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+}
 /* Code Blobs & Files */
 #blob a {
 	color: #444444;
