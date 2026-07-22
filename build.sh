@@ -8,6 +8,14 @@ WORK_DIR="$(pwd)"
 REPOS_DIR="$WORK_DIR/raw_repos"
 SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
+META_FILE="$WORK_DIR/repo_meta.tsv"   # NEW: name<TAB>lang<TAB>updated, written inside the loop
+
+# Site base URL used for sitemap.xml (CNAME wins, else github.io URL)
+if [ -f "$WORK_DIR/CNAME" ]; then
+    SITE_BASE_URL="https://$(cat "$WORK_DIR/CNAME" | tr -d '[:space:]')"
+else
+    SITE_BASE_URL="https://${USERNAME}.github.io"
+fi
 
 # 1. Capture git-mirror Repository Commit & Build Metadata
 MIRROR_COMMIT_HASH=$(git -C "$WORK_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -15,8 +23,9 @@ MIRROR_FULL_HASH=$(git -C "$WORK_DIR" rev-parse HEAD 2>/dev/null || echo "unknow
 MIRROR_COMMIT_DATE=$(git -C "$WORK_DIR" log -1 --format="%cd" --date=iso-strict 2>/dev/null || echo "unknown")
 BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-rm -rf "$REPOS_DIR" "$SITE_DIR"
+rm -rf "$REPOS_DIR" "$SITE_DIR" "$META_FILE"
 mkdir -p "$REPOS_DIR" "$SITE_DIR"
+touch "$META_FILE"
 
 # 2. Copy root assets FIRST
 echo "------------------------------------------------"
@@ -33,16 +42,89 @@ if [ -d "$ASSETS_DIR" ]; then
     fi
 fi
 
+# --- NEW: lightweight, dependency-free markdown -> HTML converter for README rendering ---
+# Not a full CommonMark implementation on purpose (keeps the build fast and the page light):
+# supports headings, bold/italic, inline code, links, fenced code blocks, and lists/paragraphs.
+md_to_html() {
+    local input_file="$1"
+    sed -E \
+        -e 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' \
+        -e 's/```/\x01CODEFENCE\x01/g' \
+        "$input_file" | \
+    awk '
+    BEGIN { in_code=0; in_list=0 }
+    {
+        line=$0
+        if (line ~ /\x01CODEFENCE\x01/) {
+            if (in_code==0) { print "<pre><code>"; in_code=1 }
+            else { print "</code></pre>"; in_code=0 }
+            next
+        }
+        if (in_code==1) { print; next }
+
+        if (line ~ /^### /) { sub(/^### /,""); print "<h3>" line "</h3>"; next }
+        if (line ~ /^## /)  { sub(/^## /,"");  print "<h2>" line "</h2>"; next }
+        if (line ~ /^# /)   { sub(/^# /,"");   print "<h1>" line "</h1>"; next }
+
+        if (line ~ /^[-*] /) {
+            if (in_list==0) { print "<ul>"; in_list=1 }
+            sub(/^[-*] /,"")
+            print "<li>" line "</li>"
+            next
+        } else if (in_list==1) { print "</ul>"; in_list=0 }
+
+        if (line == "") { next }
+        print "<p>" line "</p>"
+    }
+    END { if(in_list==1) print "</ul>"; if(in_code==1) print "</code></pre>" }
+    ' | \
+    sed -E \
+        -e 's/`([^`]+)`/<code>\1<\/code>/g' \
+        -e 's/\*\*([^*]+)\*\*/<b>\1<\/b>/g' \
+        -e 's/\*([^*]+)\*/<i>\1<\/i>/g' \
+        -e 's/\[([^]]+)\]\(([^)]+)\)/<a href="\2" target="_blank">\1<\/a>/g'
+}
+
+# --- NEW: tiny dependency-free commit-activity sparkline (SVG) for repo stats ---
+generate_stats_svg() {
+    local git_dir="$1"
+    local counts
+    counts=$(git -C "$git_dir" log --format=%cd --date=format:%G-W%V 2>/dev/null | sort | uniq -c | tail -12)
+    [ -z "$counts" ] && { echo ""; return; }
+
+    local max=1
+    while read -r c _; do
+        [ -z "$c" ] && continue
+        if [ "$c" -gt "$max" ]; then max=$c; fi
+    done <<< "$counts"
+
+    local svg="<svg viewBox=\"0 0 240 40\" xmlns=\"http://www.w3.org/2000/svg\" class=\"stats-svg\" aria-label=\"commit activity, last 12 weeks\">"
+    local x=0
+    while read -r c w; do
+        [ -z "$c" ] && continue
+        local h=$(( c * 34 / max )); [ "$h" -lt 2 ] && h=2
+        local y=$(( 40 - h ))
+        svg="$svg<rect x=\"$x\" y=\"$y\" width=\"16\" height=\"$h\"><title>${w}: ${c} commit(s)</title></rect>"
+        x=$(( x + 20 ))
+    done <<< "$counts"
+    svg="$svg</svg>"
+    echo "$svg"
+}
+
 # 3. Fetch public repositories
 echo "==> Fetching public repositories for $USERNAME..."
-REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
+# NEW: also pull pushedAt + primaryLanguage for the "last updated" and "language" badges
+REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description,pushedAt,primaryLanguage -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories..."
 
 echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     REPO=$(echo "$repo_info" | jq -r '.name')
     DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
-    
+    PUSHED_AT=$(echo "$repo_info" | jq -r '.pushedAt // ""')
+    PUSHED_DATE=$(date -u -d "$PUSHED_AT" +"%Y-%m-%d" 2>/dev/null || echo "$PUSHED_AT")
+    LANG=$(echo "$repo_info" | jq -r '.primaryLanguage.name // "N/A"')
+
     # Truncate description if it's longer than 30 characters
     if [ ${#DESC} -gt 30 ]; then
         DESC="${DESC:0:30}..."
@@ -50,26 +132,99 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
 
     echo "------------------------------------------------"
     echo "==> Processing: $REPO"
-    
+
     # Clone bare repository
     git clone --bare "https://github.com/$USERNAME/$REPO.git" "$REPOS_DIR/$REPO.git"
-    
+
     # Overwrite default Git placeholder files
     echo "$DESC" > "$REPOS_DIR/$REPO.git/description"
     echo "$USERNAME" > "$REPOS_DIR/$REPO.git/owner"
 
     mkdir -p "$SITE_DIR/$REPO"
 
+    # record metadata for later badge injection into the central index (subshell-safe: append to file)
+    printf "%s\t%s\t%s\n" "$REPO" "$LANG" "$PUSHED_DATE" >> "$META_FILE"
+
     # Generate stagit HTML pages
     (
         cd "$SITE_DIR/$REPO"
         stagit "$REPOS_DIR/$REPO.git"
-        
+
         # Copy assets into each repo subfolder safely
         if [ -f "$SITE_DIR/style.css" ]; then cp "$SITE_DIR/style.css" style.css; fi
         if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" logo.png; fi
         if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
     )
+
+    # --- NEW: README rendering ---------------------------------------------------
+    README_SRC=""
+    for candidate in README.md README.MD Readme.md README; do
+        if git -C "$REPOS_DIR/$REPO.git" cat-file -e "HEAD:$candidate" 2>/dev/null; then
+            README_SRC="$candidate"
+            break
+        fi
+    done
+    if [ -n "$README_SRC" ]; then
+        git -C "$REPOS_DIR/$REPO.git" show "HEAD:$README_SRC" > "$WORK_DIR/_readme_tmp.md" 2>/dev/null || true
+        {
+            echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+            echo "<title>$REPO - README</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
+            echo "<div class=\"back-nav\"><a href=\"index.html\">← back to $REPO</a></div>"
+            echo "<div id=\"readme-content\">"
+            md_to_html "$WORK_DIR/_readme_tmp.md"
+            echo "</div></body></html>"
+        } > "$SITE_DIR/$REPO/readme.html"
+        rm -f "$WORK_DIR/_readme_tmp.md"
+    fi
+
+    # --- NEW: repo stats sparkline, added near the top of log.html ---------------
+    STATS_SVG=$(generate_stats_svg "$REPOS_DIR/$REPO.git")
+    if [ -n "$STATS_SVG" ] && [ -f "$SITE_DIR/$REPO/log.html" ]; then
+        STATS_BLOCK="<div id=\"repo-stats\"><span class=\"stats-label\">commit activity (12w)</span>$STATS_SVG</div>"
+        # insert right after the opening <body> tag
+        python3 - "$SITE_DIR/$REPO/log.html" "$STATS_BLOCK" <<'PYEOF'
+import sys
+path, block = sys.argv[1], sys.argv[2]
+with open(path, "r", encoding="utf-8") as f:
+    html = f.read()
+html = html.replace("<body>", "<body>" + block, 1)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(html)
+PYEOF
+    fi
+
+    # --- NEW: readme link + "copy clone url" text button on the repo's own index.html
+    if [ -f "$SITE_DIR/$REPO/index.html" ]; then
+        if [ -n "$README_SRC" ]; then
+            sed -i "s|</body>|<div class=\"back-nav\"><a href=\"readme.html\">README</a></div>\n</body>|" "$SITE_DIR/$REPO/index.html"
+        fi
+        cat <<'EOF' >> "$SITE_DIR/$REPO/index.html"
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Find the row/cell that contains the clone URL text and append a plain-text copy link
+    const candidates = Array.from(document.querySelectorAll('td, pre'));
+    const cloneCell = candidates.find(el => /git clone/i.test(el.textContent));
+    if (!cloneCell) return;
+    const urlMatch = cloneCell.textContent.match(/https?:\/\/\S+\.git/);
+    if (!urlMatch) return;
+    const url = urlMatch[0];
+    const btn = document.createElement('a');
+    btn.href = '#';
+    btn.textContent = '[copy]';
+    btn.style.marginLeft = '8px';
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigator.clipboard.writeText(url).then(() => {
+            const original = btn.textContent;
+            btn.textContent = '[copied]';
+            setTimeout(() => { btn.textContent = original; }, 1200);
+        });
+    });
+    cloneCell.appendChild(btn);
+});
+</script>
+EOF
+    fi
 
     # --- INJECT RECURSIVE FOLDER TREE & HASH NAV SCRIPT INTO files.html ---
     if [ -f "$SITE_DIR/$REPO/files.html" ]; then
@@ -95,14 +250,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fullPath = link.textContent.trim();
         const parts = fullPath.split('/');
-        
+
         let current = root;
         let pathAcc = '';
 
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
             pathAcc = pathAcc ? `${pathAcc}/${part}` : part;
-            
+
             if (!current.children[part]) {
                 const newNode = { name: part, children: {}, files: [], path: pathAcc, row: null, expanded: false };
                 current.children[part] = newNode;
@@ -118,16 +273,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rows.forEach(r => r.remove());
 
+    // --- NEW: breadcrumb bar, inserted directly above the file table ---
+    const breadcrumb = document.createElement('div');
+    breadcrumb.id = 'breadcrumb-nav';
+    table.parentNode.insertBefore(breadcrumb, table);
+
+    function renderBreadcrumb(path) {
+        const parts = path ? path.split('/') : [];
+        let html = '<a href="#" data-path="">root</a>';
+        let acc = '';
+        parts.forEach(part => {
+            acc = acc ? `${acc}/${part}` : part;
+            html += ` / <a href="#" data-path="${acc}">${part}</a>`;
+        });
+        breadcrumb.innerHTML = html;
+        breadcrumb.querySelectorAll('a').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const p = a.getAttribute('data-path');
+                window.location.hash = p ? `folder=${encodeURIComponent(p)}` : '';
+            });
+        });
+    }
+
     function renderNode(node, depth, parentVisible) {
         const indent = depth * 14;
         const subfolderKeys = Object.keys(node.children).sort();
-        
+
         subfolderKeys.forEach(key => {
             const childNode = node.children[key];
             const headerRow = document.createElement('tr');
             headerRow.classList.add('folder-header');
             childNode.row = headerRow;
-            
+
             if (!parentVisible) {
                 headerRow.style.display = 'none';
             }
@@ -179,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(node.children).forEach(key => {
             const child = node.children[key];
             child.row.style.display = show ? '' : 'none';
-            
+
             if (show && child.expanded) {
                 toggleVisibility(child, true);
             } else if (!show) {
@@ -216,8 +394,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const folderPath = decodeURIComponent(hash.replace('#folder=', ''));
             if (folderPath) {
                 expandToFolder(folderPath);
+                renderBreadcrumb(folderPath);
+                return;
             }
-        } else if (hash === '' || hash === '#') {
+        }
+        if (hash === '' || hash === '#') {
             Object.values(nodeMap).forEach(node => {
                 node.expanded = false;
                 if (node.updateHeader) node.updateHeader();
@@ -228,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (node.row) node.row.style.display = '';
                 }
             });
+            renderBreadcrumb('');
         }
     }
 
@@ -254,6 +436,48 @@ echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
 
+# --- NEW: inject language + last-updated badges and the search bar into the central index ---
+if [ -f "$META_FILE" ] && [ -f "$SITE_DIR/index.html" ]; then
+    while IFS=$'\t' read -r REPO LANG PUSHED_DATE; do
+        [ -z "$REPO" ] && continue
+        BADGE="<span class=\"badge lang-badge\">${LANG}</span><span class=\"badge updated-badge\">${PUSHED_DATE}</span>"
+        # stagit-index links repos as href="REPO/", insert badges right after that anchor's closing tag on the same line
+        sed -i "s|\(<a href=\"${REPO}/\"[^<]*</a>\)|\1 ${BADGE}|" "$SITE_DIR/index.html"
+    done < "$META_FILE"
+fi
+
+python3 - "$SITE_DIR/index.html" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    html = f.read()
+
+search_block = '''<div id="repo-search"><input type="text" id="repo-search-input" placeholder="filter repositories..." autocomplete="off"></div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('repo-search-input');
+    const table = document.querySelector('#index table, table');
+    if (!input || !table) return;
+    const rows = Array.from(table.querySelectorAll('tbody tr, tr')).filter(r => r.querySelector('td a'));
+    input.addEventListener('input', () => {
+        const q = input.value.toLowerCase();
+        rows.forEach(r => {
+            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+});
+</script>
+'''
+
+if "<body>" in html:
+    html = html.replace("<body>", "<body>" + search_block, 1)
+else:
+    html = search_block + html
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(html)
+PYEOF
+
 # Create root last_commit file
 cat <<EOF > "$SITE_DIR/last_commit"
 Host: git.amit.is-a.dev
@@ -278,5 +502,36 @@ echo "------------------------------------------------"
 echo "==> Injecting mobile viewport meta tags..."
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     's#<head>#<head>\n\t<meta name="viewport" content="width=device-width, initial-scale=1">#'
+
+# --- NEW: sitemap.xml ---
+echo "------------------------------------------------"
+echo "==> Generating sitemap.xml..."
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+    echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    find "$SITE_DIR" -name "*.html" | sed "s|^$SITE_DIR||" | while read -r p; do
+        echo "  <url><loc>${SITE_BASE_URL}${p}</loc></url>"
+    done
+    echo '</urlset>'
+} > "$SITE_DIR/sitemap.xml"
+
+# --- NEW: 404.html (styled to match the site) ---
+echo "==> Generating 404.html..."
+cat <<EOF > "$SITE_DIR/404.html"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>404 - Not Found</title>
+	<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+	<h1>404</h1>
+	<p class="desc">The page you're looking for doesn't exist.</p>
+	<div class="back-nav"><a href="/">← back to index</a></div>
+</body>
+</html>
+EOF
 
 echo "==> Build complete! Output generated in ./site"
