@@ -177,28 +177,6 @@ tr.folder-header td {
 	color: #444444;
 }
 
-/* ===== rendered README ===== */
-#readme-content {
-	max-width: 780px;
-	line-height: 1.5;
-}
-#readme-content pre {
-	background-color: #f4f4f4;
-	padding: 8px;
-	overflow-x: auto;
-}
-#readme-content code {
-	background-color: #f4f4f4;
-	padding: 0 3px;
-}
-#readme-content h1, #readme-content h2, #readme-content h3 {
-	margin: 14px 0 6px 0;
-}
-#readme-content ul {
-	margin: 4px 0;
-	padding-left: 20px;
-}
-
 /* ===== activity.html: clone/github/last-commit/size + commit graph ===== */
 #activity-meta p {
 	margin: 4px 0;
@@ -299,8 +277,6 @@ tr.folder-header td {
 	#file-breadcrumb span {
 		color: #999999;
 	}
-	#readme-content pre,
-	#readme-content code,
 	#activity-meta code {
 		background-color: #0d0d0d;
 	}
