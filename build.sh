@@ -10,8 +10,10 @@ SITE_DIR="$WORK_DIR/site"
 ASSETS_DIR="$WORK_DIR/assets"
 
 # Site base URL used for sitemap.xml (CNAME wins, else github.io URL)
-if [ -f "$WORK_DIR/CNAME" ]; then
-    SITE_BASE_URL="https://$(cat "$WORK_DIR/CNAME" | tr -d '[:space:]')"
+PAGES_CNAME=$(gh api "repos/${REPO_NAME}/pages" --jq '.cname // empty' 2>/dev/null || echo "")
+
+if [ -n "$PAGES_CNAME" ]; then
+    SITE_BASE_URL="https://${PAGES_CNAME}"
 else
     SITE_BASE_URL="https://${USERNAME}.github.io"
 fi
@@ -442,11 +444,12 @@ find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
 # --- sitemap.xml ---
 echo "------------------------------------------------"
 echo "==> Generating sitemap.xml..."
+SITEMAP_LASTMOD=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 {
     echo '<?xml version="1.0" encoding="UTF-8"?>'
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
     find "$SITE_DIR" -name "*.html" | sed "s|^$SITE_DIR||" | while read -r p; do
-        echo "  <url><loc>${SITE_BASE_URL}${p}</loc></url>"
+        echo "  <url><loc>${SITE_BASE_URL}${p}</loc><lastmod>${SITEMAP_LASTMOD}</lastmod></url>"
     done
     echo '</urlset>'
 } > "$SITE_DIR/sitemap.xml"
