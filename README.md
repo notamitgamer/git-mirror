@@ -42,4 +42,5 @@ You can easily customize the site to fit your needs:
 *   **Custom Domain:** If you are using a custom domain, simply create a file named `CNAME` in the root of the repository containing your domain name. The build script will automatically copy it to the site output.
 
 ## License
-This project is open-source and available under the MIT License.
+This project is open-source and available under MIT License.
+
