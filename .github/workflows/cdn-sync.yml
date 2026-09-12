@@ -13,7 +13,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Request GitHub OIDC token
         id: oidc
@@ -21,13 +21,16 @@ jobs:
         with:
           script: |
             const token = await core.getIDToken('cdn.amit.is-a.dev')
+            core.setSecret(token)
             core.setOutput('token', token)
 
       - name: Package repo contents
         run: tar --exclude='.git' -czf /tmp/payload.tar.gz .
 
       - name: Push to CDN
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         run: |
           curl -sf -X POST https://cdn.amit.is-a.dev/api/gh-sync \
-            -F "token=${{ steps.oidc.outputs.token }}" \
+            -F "token=$OIDC_TOKEN" \
             -F "archive=@/tmp/payload.tar.gz"
