@@ -1,46 +1,43 @@
-name: Generate & Deploy Git Mirror
+name: Build and Deploy Git Mirror
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs automatically every night at midnight UTC
-  workflow_dispatch:      # Manual trigger button in GitHub UI
+    - cron: '0 0 * * *' # Run daily
+  workflow_dispatch: # Allow manual triggers
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
 jobs:
   build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout builder repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install stagit dependencies and build stagit
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libgit2-dev jq
-          git clone https://github.com/oxalorg/stagit.git /tmp/stagit
-          cd /tmp/stagit
-          make
-          sudo make install
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
 
-      - name: Build Mirror Site
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          chmod +x build.sh
-          ./build.sh
+      - name: Install gitmal
+        run: go install github.com/antonmedv/gitmal@latest
 
-      - name: Upload artifact for GitHub Pages
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Build Site
+        run: bash build.sh
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './site'
