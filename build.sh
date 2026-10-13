@@ -50,9 +50,9 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     REPO=$(echo "$repo_info" | jq -r '.name')
     DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
 
-    # Truncate description if it's longer than 30 characters
-    if [ ${#DESC} -gt 30 ]; then
-        DESC="${DESC:0:30}..."
+    # Truncate description if it's longer than 50 characters for a cleaner look
+    if [ ${#DESC} -gt 50 ]; then
+        DESC="${DESC:0:50}..."
     fi
 
     echo "------------------------------------------------"
@@ -84,11 +84,12 @@ echo "------------------------------------------------"
 echo "==> Generating root index.html..."
 {
     echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+    echo "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
     echo "<title>Repositories - $USERNAME</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
     echo "<main>"
     echo "<div class=\"repo-header\"><h1>Repositories</h1></div>"
     echo "<div class=\"table-container\">"
-    echo "<table><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>"
+    echo "<table><thead><tr><th>Repository</th><th>Description</th></tr></thead><tbody>"
 
     if [ -f "$WORK_DIR/repos_manifest.txt" ]; then
         while IFS='|' read -r r_name r_desc; do
@@ -110,7 +111,7 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject formatted build footer with INLINE styles to match Gitmal
-FOOTER_HTML="<div style=\"text-align: center; padding: 24px 16px; font-size: 12px; color: #8b949e; border-top: 1px solid #30363d; margin-top: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\">Site Built: $BUILD_TIME | git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\" style=\"color: #58a6ff; text-decoration: none;\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\" style=\"color: #58a6ff; text-decoration: none;\">raw info</a>]<br>Originally created with <a href=\"https://github.com/antonmedv/gitmal\" target=\"_blank\" style=\"color: #58a6ff; text-decoration: none;\">gitmal</a> | Modified by <a href=\"https://github.com/notamitgamer\" style=\"color: #58a6ff; text-decoration: none;\">notamitgamer</a></div>"
+FOOTER_HTML="<div style=\"text-align: center; padding: 24px 16px; font-size: 13px; color: #9c9ca4; border-top: 1px solid #2e2e34; margin-top: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\">Site Built: $BUILD_TIME | git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">raw info</a>]<br>Originally created with <a href=\"https://github.com/antonmedv/gitmal\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">gitmal</a> | Modified by <a href=\"https://github.com/notamitgamer\" style=\"color: #6eb6ff; text-decoration: none;\">notamitgamer</a></div>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s~</body>~$FOOTER_HTML\n</body>~g"
