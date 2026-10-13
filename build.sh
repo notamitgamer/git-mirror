@@ -66,7 +66,8 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     # Generate static HTML pages using gitmal
     gitmal "$REPOS_DIR/$REPO" \
         --output "$SITE_DIR/$REPO" \
-        --clone-base "https://github.com/$USERNAME/$REPO" \
+        --owner "$USERNAME" \
+        --name "$REPO" \
         --theme github-dark
 
     # Copy assets into each repo subfolder safely
