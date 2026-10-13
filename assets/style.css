@@ -1,303 +1,118 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 /* Global Font & Reset */
 * {
-	box-sizing: border-box;
-}
-* {
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 button, a, input, textarea {
   outline: none;
 }
 body {
-	color: #000000;
-	background-color: #ffffff;
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 14px;
-	margin: 0 auto;
-	padding: 12px 16px;
+  color: #000000;
+  background-color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  margin: 0 auto;
+  padding: 12px 16px;
 }
 h1, h2, h3, h4, h5, h6 {
-	font-size: 1em;
-	margin: 0;
-	font-family: 'JetBrains Mono', monospace;
-	color: #000000;
+  font-size: 1em;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  color: #000000;
 }
 img, h1, h2 {
-	vertical-align: middle;
+  vertical-align: middle;
 }
 img {
-	border: 0;
+  border: 0;
 }
 a {
-	color: #0000ff;
-	text-decoration: none;
+  color: #0000ff;
+  text-decoration: none;
 }
 a:hover {
-	text-decoration: underline;
+  text-decoration: underline;
 }
-a:target {
-	background-color: #dddddd;
-}
-a.d,
-a.h,
-a.i,
-a.line {
-	text-decoration: none;
-}
-/* Top Back Navigation Link */
+
+/* Top Back Navigation Link (Used in 404.html) */
 .back-nav {
-	margin-bottom: 12px;
-	font-size: 13px;
-	font-weight: 700;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
 }
 .back-nav a {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	color: #0000ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0000ff;
 }
-/* Same arrow-alignment fix as .back-nav a, but usable inline (e.g. inside a
-   <p> nav line) without needing the block-level .back-nav wrapper */
-.nav-arrow {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	line-height: 1;
-}
-.nav-arrow svg {
-	width: 20px;
-	height: 20px;
-	flex-shrink: 0;
-	vertical-align: middle;
-}
-/* Code Blobs & Files */
-#blob a {
-	color: #444444;
-}
-#blob a:hover {
-	color: #0000ff;
-	text-decoration: none;
-}
-/* Prevent text wrapping & keep straight horizontal lines */
+
+/* Index Table Styles (Used on root index.html) */
 table {
-	border-collapse: collapse;
-	width: 100%;
-	display: block;
-	overflow-x: auto;
-	white-space: nowrap;
+  border-collapse: collapse;
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
 }
-table thead td {
-	font-weight: bold;
-	color: #000000;
+table thead th {
+  font-weight: bold;
+  color: #000000;
 }
 table td, table th {
-	padding: 2px 6px;
-	text-align: left;
-	vertical-align: top;
-	white-space: nowrap;
+  padding: 2px 6px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
 }
-#branches tr:hover td,
-#tags tr:hover td,
-#index tr:hover td,
-#log tr:hover td,
-#files tr:hover td {
-	background-color: #f0f0f0;
-}
-td.num {
-	text-align: right;
+#index tr:hover td {
+  background-color: #f0f0f0;
 }
 .desc {
-	color: #444444;
+  color: #444444;
 }
 hr {
-	border: 0;
-	border-top: 1px solid #000000;
-	height: 1px;
-	margin: 12px 0;
+  border: 0;
+  border-top: 1px solid #000000;
+  height: 1px;
+  margin: 12px 0;
 }
-/* Code & Diffs */
-pre {
-	font-family: 'JetBrains Mono', monospace;
-	margin: 0;
-	overflow-x: auto;
-	white-space: pre;
-	-webkit-overflow-scrolling: touch;
-}
-pre a.h {
-	color: #0000aa;
-}
-.A,
-span.i,
-pre a.i {
-	color: #007700;
-}
-.D,
-span.d,
-pre a.d {
-	color: #ee0000;
-}
-pre a.h:hover,
-pre a.i:hover,
-pre a.d:hover {
-	text-decoration: none;
-}
+
 /* Build metadata footer */
 #build-info {
-	margin-top: 20px;
-	padding-top: 8px;
-	border-top: 1px dashed #444444;
-	font-size: 11px;
-	color: #666666;
-	line-height: 1.6;
-}
-/* Custom Folder Tree Styles */
-tr.folder-header {
-	cursor: pointer;
-	font-weight: 700;
-	user-select: none;
-	background-color: #f4f4f4;
-	-webkit-tap-highlight-color: transparent;
-	outline: none;
-}
-tr.folder-header:hover {
-	background-color: #e5e5e5 !important;
-}
-tr.folder-header td {
-	padding: 6px 8px !important;
-	border-bottom: 1px solid #cccccc;
-}
-
-/* ===== breadcrumb nav on files.html (JS-driven, folder tree view) ===== */
-#breadcrumb-nav {
-	margin-bottom: 10px;
-	font-size: 12px;
-	font-weight: 700;
-}
-#breadcrumb-nav a {
-	color: #0000ff;
-}
-
-/* ===== breadcrumb on individual file pages (file/**/*.html, static) ===== */
-#file-breadcrumb {
-	margin-bottom: 10px;
-	font-size: 12px;
-	font-weight: 700;
-}
-#file-breadcrumb a {
-	color: #0000ff;
-}
-#file-breadcrumb span {
-	color: #444444;
-}
-
-/* ===== activity.html: clone/github/last-commit/size + commit graph ===== */
-#activity-meta p {
-	margin: 4px 0;
-}
-#activity-meta code {
-	background-color: #f4f4f4;
-	padding: 1px 4px;
-}
-#activity-graph {
-	margin-top: 16px;
-}
-.stats-label {
-	display: block;
-	font-size: 11px;
-	color: #666666;
-	margin-bottom: 6px;
-}
-.activity-graph-wrap {
-	width: 100%;
-	overflow-x: hidden;
-}
-.stats-svg {
-	width: 100%;
-	height: 60px;
-	display: block;
-}
-.stats-svg rect {
-	fill: #444444;
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px dashed #444444;
+  font-size: 11px;
+  color: #666666;
+  line-height: 1.6;
 }
 
 /* System Dark Mode - TRUE OLED BLACK (#000000) */
 @media (prefers-color-scheme: dark) {
-	body {
-		background-color: #000000;
-		color: #e0e0e0;
-	}
-	h1, h2, h3, h4, h5, h6, table thead td {
-		color: #ffffff;
-	}
-	hr {
-		border-color: #222222;
-	}
-	a, .back-nav a {
-		color: #56c8ff;
-	}
-	a:target {
-		background-color: #222222;
-	}
-	.desc {
-		color: #888888;
-	}
-	#blob a {
-		color: #777777;
-	}
-	#blob a:target {
-		color: #ffffff;
-	}
-	#blob a:hover {
-		color: #56c8ff;
-	}
-	pre a.h {
-		color: #00cdcd;
-	}
-	.A,
-	span.i,
-	pre a.i {
-		color: #00cd00;
-	}
-	.D,
-	span.d,
-	pre a.d {
-		color: #cd0000;
-	}
-	#branches tr:hover td,
-	#tags tr:hover td,
-	#index tr:hover td,
-	#log tr:hover td,
-	#files tr:hover td {
-		background-color: #0d0d0d;
-	}
-	#build-info {
-		border-top-color: #222222;
-		color: #666666;
-	}
-	tr.folder-header {
-		background-color: #0a0a0a;
-	}
-	tr.folder-header:hover {
-		background-color: #141414 !important;
-	}
-	tr.folder-header td {
-		border-bottom-color: #222222;
-	}
-	#breadcrumb-nav a,
-	#file-breadcrumb a {
-		color: #56c8ff;
-	}
-	#file-breadcrumb span {
-		color: #999999;
-	}
-	#activity-meta code {
-		background-color: #0d0d0d;
-	}
-	.stats-svg rect {
-		fill: #999999;
-	}
-	.stats-label {
-		color: #888888;
-	}
+  body {
+    background-color: #000000;
+    color: #e0e0e0;
+  }
+  h1, h2, h3, h4, h5, h6, table thead th {
+    color: #ffffff;
+  }
+  hr {
+    border-color: #222222;
+  }
+  a, .back-nav a {
+    color: #56c8ff;
+  }
+  .desc {
+    color: #888888;
+  }
+  #index tr:hover td {
+    background-color: #0d0d0d;
+  }
+  #build-info {
+    border-top-color: #222222;
+    color: #666666;
+  }
 }
