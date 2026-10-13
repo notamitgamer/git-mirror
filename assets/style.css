@@ -1,42 +1,59 @@
+:root {
+  --bg-base: #1b1b1f;
+  --bg-surface: #222227;
+  --bg-hover: #2a2a30;
+  --text-primary: #e3e3e8;
+  --text-secondary: #9c9ca4;
+  --border-subtle: #2e2e34;
+  --link-accent: #6eb6ff;
+}
+
 body {
-  background-color: #0d1117;
-  color: #c9d1d9;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   margin: 0;
   padding: 0;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 main {
-  max-width: 1012px;
-  margin: 0 auto;
-  padding: 32px 16px;
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
 }
 
 .repo-header {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .repo-header h1 {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   margin: 0;
-  color: #c9d1d9;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
 }
 
 a {
-  color: #58a6ff;
+  color: var(--link-accent);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
+
 a:hover {
   text-decoration: underline;
 }
 
+/* Redesigned Index Table / List */
 .table-container {
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-  background-color: #0d1117;
 }
 
 table {
@@ -46,19 +63,25 @@ table {
 }
 
 th {
-  background-color: #161b22;
-  padding: 12px 16px;
-  border-bottom: 1px solid #30363d;
+  background-color: var(--bg-surface);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
   font-weight: 600;
-  color: #8b949e;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #30363d;
-  font-size: 14px;
-  vertical-align: top;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 15px;
+  vertical-align: middle;
+}
+
+tr {
+  transition: background-color 0.15s ease;
 }
 
 tr:last-child td {
@@ -66,15 +89,15 @@ tr:last-child td {
 }
 
 tr:hover td {
-  background-color: #161b22;
+  background-color: var(--bg-hover);
 }
 
 td a {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .desc {
-  color: #8b949e;
+  color: var(--text-secondary);
   font-size: 14px;
 }
