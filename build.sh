@@ -108,11 +108,7 @@ Build Date: $BUILD_TIME
 EOF
 
 # 5. Inject formatted multi-line build footer into EVERY generated HTML page
-FOOTER_HTML="<div id=\"build-info\">
-  <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> | 
-  Site Built: $BUILD_TIME | 
-  git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://github.com/antonmedv/gitmal\" target=\"_blank\">gitmal</a> | 
-  slightly modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a>"
+FOOTER_HTML="<div id=\"build-info\"><a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> | Site Built: $BUILD_TIME | git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://github.com/antonmedv/gitmal\" target=\"_blank\">gitmal</a> | Slightly modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a>"
 
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
     "s|</body>|$FOOTER_HTML\n</body>|g"
