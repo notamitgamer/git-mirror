@@ -6,10 +6,11 @@
   <a href="https://github.com/notamitgamer/git-mirror/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/notamitgamer/git-mirror" alt="MIT License">
   </a>
-  
+</p>
+
 # Git Mirror Site Generator
 
-This repository contains an automated setup to generate a fast, static HTML mirror of your public GitHub repositories using `stagit` and GitHub Actions.
+This repository contains an automated setup to generate a fast, static HTML mirror of your public GitHub repositories using `gitmal` and GitHub Actions.
 
 ## How to Fork and Deploy
 
@@ -38,9 +39,9 @@ GitHub automatically disables workflows in forked repositories for security reas
 You can easily customize the site to fit your needs:
 
 *   **Filter Repositories:** Open `build.sh` and look for the `gh repo list` command. You can edit the `select` statement to exclude specific repositories (e.g., hiding forks or specific project names).
-*   **Styling & Assets:** Replace or edit the files inside the `assets/` directory (`style.css`, `logo.png`, `favicon.png`) to apply your own branding.
+*   **Styling & Assets:** Replace or edit the files inside the `assets/` directory (`style.css`, `logo.png`, `favicon.png`) to apply your own branding. Note that `gitmal` now handles native Markdown rendering and syntax highlighting automatically. 
 *   **Custom Domain:** If you are using a custom domain, simply create a file named `CNAME` in the root of the repository containing your domain name. The build script will automatically copy it to the site output.
 
 ## License
-This project is open-source and available under MIT License.
 
+This project is open-source and available under MIT License.
