@@ -1,118 +1,98 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-/* Global Font & Reset */
+/* Global Reset & GitHub Dark Theme Colors */
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
-button, a, input, textarea {
-  outline: none;
-}
+
 body {
-  color: #000000;
-  background-color: #ffffff;
-  font-family: 'JetBrains Mono', monospace;
+  background-color: #0d1117; /* GitHub Dark background */
+  color: #c9d1d9; /* GitHub Dark text */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 14px;
+  line-height: 1.5;
   margin: 0 auto;
-  padding: 12px 16px;
+  max-width: 1012px;
+  padding: 32px 16px;
 }
-h1, h2, h3, h4, h5, h6 {
-  font-size: 1em;
-  margin: 0;
-  font-family: 'JetBrains Mono', monospace;
-  color: #000000;
+
+h1, h2, h3 {
+  color: #c9d1d9;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 8px;
 }
-img, h1, h2 {
-  vertical-align: middle;
-}
-img {
-  border: 0;
-}
+
 a {
-  color: #0000ff;
+  color: #58a6ff; /* GitHub Dark link color */
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }
 
-/* Top Back Navigation Link (Used in 404.html) */
-.back-nav {
-  margin-bottom: 12px;
-  font-size: 13px;
-  font-weight: 700;
-}
-.back-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #0000ff;
+hr {
+  height: 1px;
+  background-color: #21262d;
+  border: none;
+  margin: 24px 0;
 }
 
-/* Index Table Styles (Used on root index.html) */
+/* Index Table Styles */
 table {
   border-collapse: collapse;
   width: 100%;
-  display: block;
-  overflow-x: auto;
-  white-space: nowrap;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
 }
+
 table thead th {
-  font-weight: bold;
-  color: #000000;
-}
-table td, table th {
-  padding: 2px 6px;
+  background-color: #161b22;
+  color: #c9d1d9;
+  font-weight: 600;
   text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #30363d;
+}
+
+table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #30363d;
   vertical-align: top;
-  white-space: nowrap;
 }
-#index tr:hover td {
-  background-color: #f0f0f0;
+
+table tbody tr:last-child td {
+  border-bottom: none;
 }
+
+table tbody tr:hover {
+  background-color: #161b22; /* Slight highlight on hover */
+}
+
+table tbody td a {
+  font-weight: 600;
+  font-size: 16px;
+}
+
 .desc {
-  color: #444444;
-}
-hr {
-  border: 0;
-  border-top: 1px solid #000000;
-  height: 1px;
-  margin: 12px 0;
+  color: #8b949e; /* Muted text for descriptions */
+  font-size: 14px;
 }
 
 /* Build metadata footer */
 #build-info {
-  margin-top: 20px;
-  padding-top: 8px;
-  border-top: 1px dashed #444444;
-  font-size: 11px;
-  color: #666666;
-  line-height: 1.6;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #21262d;
+  font-size: 12px;
+  color: #8b949e;
+  text-align: center;
 }
 
-/* System Dark Mode - TRUE OLED BLACK (#000000) */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000000;
-    color: #e0e0e0;
-  }
-  h1, h2, h3, h4, h5, h6, table thead th {
-    color: #ffffff;
-  }
-  hr {
-    border-color: #222222;
-  }
-  a, .back-nav a {
-    color: #56c8ff;
-  }
-  .desc {
-    color: #888888;
-  }
-  #index tr:hover td {
-    background-color: #0d0d0d;
-  }
-  #build-info {
-    border-top-color: #222222;
-    color: #666666;
-  }
+#build-info a {
+  color: #58a6ff;
 }
