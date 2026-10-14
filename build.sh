@@ -415,6 +415,7 @@ done
 echo "------------------------------------------------"
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
+    sed -i "s|/log\.html|/files\.html|g" index.html 2>/dev/null || true
 
 # Create root last_commit file
 cat <<EOF > "$SITE_DIR/last_commit"
