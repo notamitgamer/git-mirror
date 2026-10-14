@@ -45,7 +45,7 @@ jobs:
       - name: Cache Bare Repositories
         uses: actions/cache@v4
         with:
-          path: repos
+          path: raw_repos
           key: git-repos-cache-${{ github.run_id }}
           restore-keys: |
             git-repos-cache-
@@ -59,7 +59,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'public'
+          path: 'site'
 
   deploy:
     environment:
