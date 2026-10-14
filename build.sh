@@ -24,7 +24,7 @@ mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
-    for f in style.css favicon.png logo.png icon.png; do
+    for f in style.css nav.js favicon.png logo.png icon.png; do
         if [ -f "$ASSETS_DIR/$f" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
         fi
@@ -52,17 +52,9 @@ Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOFLAST
 
-FOOTER_HTML="<div id=\"build-info\">© <a href=\"https://github.com/$USERNAME\" target=\"_blank\">$USERNAME</a> • Site Built: $BUILD_TIME • git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\">view raw info</a>]<br>Originally created with <a href=\"https://codemadness.org/stagit.html\" target=\"_blank\">stagit</a> • modified by <a href=\"https://github.com/notamitgamer\">notamitgamer</a><br>Forked from <a href=\"https://github.com/notamitgamer/git-mirror\" target=\"_blank\">github.com/notamitgamer/git-mirror</a></div>"
-
-find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    "s|</body>|$FOOTER_HTML\n</body>|g"
-
 if [ -f "$WORK_DIR/CNAME" ]; then
     cp "$WORK_DIR/CNAME" "$SITE_DIR/CNAME"
 fi
-
-find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    's#<head>#<head>\n\t<meta name="viewport" content="width=device-width, initial-scale=1">#'
 
 echo "==> Generating sitemap.xml..."
 SITEMAP_LASTMOD=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
@@ -91,5 +83,10 @@ cat <<EOF404 > "$SITE_DIR/404.html"
 </body>
 </html>
 EOF404
+
+echo "==> Post-processing pages (nav, clone commands, footer, prefetch)..."
+MIRROR_USER="$USERNAME" MIRROR_REPO="$REPO_NAME" MIRROR_BUILD_TIME="$BUILD_TIME" \
+MIRROR_SHORT="$MIRROR_COMMIT_HASH" MIRROR_FULL="$MIRROR_FULL_HASH" MIRROR_BASE_URL="$SITE_BASE_URL" \
+    python3 "$WORK_DIR/postprocess.py" "$SITE_DIR"
 
 echo "==> Build complete! Output generated in ./site"
