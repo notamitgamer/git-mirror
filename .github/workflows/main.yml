@@ -28,14 +28,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/stagit*
-          key: stagit-bin-v1
+          key: stagit-bin-v2
 
       - name: Compile Stagit (Only on cache miss)
         if: steps.cache-stagit.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update && sudo apt-get install -y libgit2-dev
+          sudo apt-get update
+          sudo apt-get install -y libgit2-dev
           git clone git://git.codemadness.org/stagit /tmp/stagit
           cd /tmp/stagit && make CC=clang && sudo make install PREFIX=/usr/local
+
+      - name: Install Runtime Shared Library (On cache hit)
+        if: steps.cache-stagit.outputs.cache-hit == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgit2-1.7
 
       - name: Cache Bare Repositories
         uses: actions/cache@v4

@@ -38,7 +38,7 @@ echo "==> Fetching public repositories for $USERNAME..."
 REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories in parallel (4 workers)..."
-echo "$REPOS_JSON" | jq -c -j '. | . + "\u0000"' | xargs -0 -n 1 -P 4 ./worker.sh
+echo "$REPOS_JSON" | jq -c -j '. | tostring + "\u0000"' | xargs -0 -n 1 -P 4 ./worker.sh
 
 echo "==> Generating central stagit-index..."
 stagit-index "$REPOS_DIR"/*.git > "$SITE_DIR/index.html"
