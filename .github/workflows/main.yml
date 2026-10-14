@@ -30,17 +30,12 @@ jobs:
           path: /usr/local/bin/stagit*
           key: stagit-bin-v1
 
-      - name: Install Dependencies & Compile Stagit
+      - name: Compile Stagit (Only on cache miss)
         if: steps.cache-stagit.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgit2-dev jq
+          sudo apt-get update && sudo apt-get install -y libgit2-dev
           git clone git://git.codemadness.org/stagit /tmp/stagit
           cd /tmp/stagit && make CC=clang && sudo make install PREFIX=/usr/local
-
-      - name: Install Runtime Tools
-        if: steps.cache-stagit.outputs.cache-hit == 'true'
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Cache Bare Repositories
         uses: actions/cache@v4
@@ -51,6 +46,8 @@ jobs:
             git-repos-cache-
 
       - name: Run Build
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: bash build.sh
 
       - name: Setup Pages
