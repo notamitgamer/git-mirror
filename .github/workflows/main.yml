@@ -1,79 +1,50 @@
-name: Build and Deploy Git Mirror
+name: Generate & Deploy Git Mirror
 
 on:
   schedule:
-    - cron: '0 * * * *' # Hourly check; only rebuilds when a repo changed (see "Detect changes")
-    - cron: '0 0 * * *' # Daily forced rebuild
-  workflow_dispatch: # Allow manual triggers (always rebuilds)
-  push:
-    branches:
-      - main
+    - cron: '0 0 * * *'  # Runs automatically every night at midnight UTC
+  workflow_dispatch:      # Manual trigger button in GitHub UI
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout builder repo
         uses: actions/checkout@v4
 
-      - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      # Fingerprint = name + last-push time of every public repo (same filter as build.sh).
-      # Compared with the fingerprint.txt of the currently deployed site. New repos,
-      # new pushes and deleted repos all change it. Hourly runs stop here if nothing changed.
-      - name: Detect changes
-        id: check
-        env:
-          GH_REPO_OWNER: ${{ github.repository_owner }}
+      - name: Install stagit dependencies and build stagit
         run: |
-          FP=$(gh repo list "$GH_REPO_OWNER" --visibility=public --limit 100 --json name,pushedAt \
-                 -q '[.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")] | sort_by(.name) | .[] | "\(.name) \(.pushedAt)"' \
-               | sha256sum | cut -d' ' -f1)
-          OLD=$(curl -sf --max-time 20 "https://git.amit.is-a.dev/fingerprint.txt" || echo "none")
-          echo "new=$FP old=$OLD"
-          echo "fingerprint=$FP" >> "$GITHUB_OUTPUT"
-          # Scheduled hourly run -> only build if changed. Everything else (push, manual,
-          # the midnight cron) always builds.
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" = "0 * * * *" ] && [ "$FP" = "$OLD" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No repo changes, skipping build."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgit2-dev jq
+          git clone https://github.com/oxalorg/stagit.git /tmp/stagit
+          cd /tmp/stagit
+          make
+          sudo make install
 
-      - name: Set up Go
-        if: steps.check.outputs.changed == 'true'
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22'
-
-      - name: Install gitmal
-        if: steps.check.outputs.changed == 'true'
-        run: go install github.com/antonmedv/gitmal@latest
-
-      - name: Build Site
-        if: steps.check.outputs.changed == 'true'
+      - name: Build Mirror Site
         env:
-          FINGERPRINT: ${{ steps.check.outputs.fingerprint }}
-        run: bash build.sh
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x build.sh
+          ./build.sh
 
-      - name: Setup Pages
-        if: steps.check.outputs.changed == 'true'
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        if: steps.check.outputs.changed == 'true'
+      - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: './site'
 
       - name: Deploy to GitHub Pages
-        if: steps.check.outputs.changed == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
