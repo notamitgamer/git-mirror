@@ -55,10 +55,12 @@ SPEC = ('<script type="speculationrules">{"prerender":[{"where":{"href_matches":
         '"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"conservative"}]}</script>')
 
 def head_inject(doc):
+    # Cache-bust CSS/JS: browsers kept serving the previous style.css after a deploy
+    doc = re.sub(r'href="((?:\.\./)*style\.css)(?:\?[^"]*)?"', lambda m: f'href="{m.group(1)}?v={SHORT}"', doc)
     if 'name="viewport"' not in doc:
         doc = re.sub(r'<head>', '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">', doc, 1)
     extra = ('<meta name="color-scheme" content="dark"><meta name="theme-color" content="#181825">'
-             '<script src="/nav.js" defer></script>' + SPEC)
+             '<script src="/nav.js?v='+SHORT+'" defer></script>' + SPEC)
     return doc.replace('</head>', extra + '\n</head>', 1)
 
 def pill_nav(doc, current):
