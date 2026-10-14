@@ -15,9 +15,9 @@ SITE_DIR="$WORK_DIR/site"
 REPO=$(echo "$repo_info" | jq -r '.name')
 DESC=$(echo "$repo_info" | jq -r '.description // "No description provided."')
 
-# Truncate description if longer than 30 characters
-if [ ${#DESC} -gt 30 ]; then
-    DESC="${DESC:0:30}..."
+# Truncate long descriptions (cards have room for more than the old 30 chars)
+if [ ${#DESC} -gt 140 ]; then
+    DESC="${DESC:0:140}..."
 fi
 
 TARGET="$REPOS_DIR/$REPO.git"
