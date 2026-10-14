@@ -43,7 +43,7 @@ fi
 
 # 3. Fetch public repositories
 echo "==> Fetching public repositories for $USERNAME..."
-REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
+REPOS_JSON=$(gh repo list "$USERNAME" --visibility=public --limit 100 --json name,description,pushedAt,primaryLanguage -q '.[] | select(.name != "git-mirror" and .name != "register" and .name != "osma")')
 
 echo "==> Processing repositories with gitmal..."
 echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
@@ -87,8 +87,11 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
     if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" "$SITE_DIR/$REPO/logo.png"; fi
     if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" "$SITE_DIR/$REPO/favicon.png"; fi
 
-    # Track repo data for the custom root index
-    echo "$REPO|$DESC" >> "$WORK_DIR/repos_manifest.txt"
+    # Track repo data for the custom root index (tab-separated; HTML-escape the description)
+    PUSHED=$(echo "$repo_info" | jq -r '.pushedAt // ""')
+    LANG_NAME=$(echo "$repo_info" | jq -r '.primaryLanguage.name // "-"')
+    DESC_ESC=$(printf '%s' "$DESC" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')
+    printf '%s\t%s\t%s\t%s\n' "$REPO" "$DESC_ESC" "$PUSHED" "$LANG_NAME" >> "$WORK_DIR/repos_manifest.txt"
 done
 
 # 4. Generate central root index.html
@@ -99,18 +102,65 @@ echo "==> Generating root index.html..."
     echo "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
     echo "<title>Repositories - $USERNAME</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
     echo "<main>"
-    echo "<div class=\"repo-header\"><h1>Repositories</h1></div>"
+    echo "<div class=\"repo-header\"><h1>Repositories</h1><input id=\"repo-search\" type=\"search\" placeholder=\"Filter repositories...\" aria-label=\"Filter repositories\"></div>"
     echo "<div class=\"table-container\">"
-    echo "<table><thead><tr><th>Repository</th><th>Description</th></tr></thead><tbody>"
+    echo "<table id=\"repo-table\"><thead><tr><th>Repository</th><th class=\"col-desc\">Description</th><th class=\"col-lang\">Language</th><th class=\"col-updated\">Updated</th><th class=\"col-clone\">Clone</th></tr></thead><tbody>"
 
     if [ -f "$WORK_DIR/repos_manifest.txt" ]; then
-        while IFS='|' read -r r_name r_desc; do
-            echo "<tr><td><a href=\"$r_name/\">$r_name</a></td><td class=\"desc\">$r_desc</td></tr>"
+        while IFS=$'\t' read -r r_name r_desc r_pushed r_lang; do
+            echo "<tr><td><a href=\"$r_name/\">$r_name</a></td><td class=\"desc col-desc\">$r_desc</td><td class=\"col-lang\">$r_lang</td><td class=\"col-updated\"><time datetime=\"$r_pushed\">$r_pushed</time></td><td class=\"col-clone\"><button class=\"copy-btn\" type=\"button\" data-clone=\"git clone https://git.amit.is-a.dev/$r_name\" title=\"Copy: git clone https://git.amit.is-a.dev/$r_name\">Copy</button></td></tr>"
         done < "$WORK_DIR/repos_manifest.txt"
         rm -f "$WORK_DIR/repos_manifest.txt"
     fi
 
-    echo "</tbody></table></div></main></body></html>"
+    echo "</tbody></table></div><p id=\"no-results\" class=\"desc\" hidden>No repositories match your filter.</p></main>"
+    cat <<'JSEOF'
+<script>
+(function () {
+  // Relative "updated" times
+  var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  var units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
+  document.querySelectorAll('time[datetime]').forEach(function (t) {
+    var d = new Date(t.getAttribute('datetime'));
+    if (isNaN(d)) { t.textContent = '-'; return; }
+    var secs = (d - Date.now()) / 1000;
+    t.title = d.toLocaleString();
+    for (var i = 0; i < units.length; i++) {
+      if (Math.abs(secs) >= units[i][1] || units[i][0] === 'minute') {
+        t.textContent = rtf.format(Math.round(secs / units[i][1]), units[i][0]);
+        break;
+      }
+    }
+  });
+
+  // Live filter (name, description, language); "/" focuses the box
+  var input = document.getElementById('repo-search');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#repo-table tbody tr'));
+  var empty = document.getElementById('no-results');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase(), shown = 0;
+    rows.forEach(function (r) {
+      var hit = r.textContent.toLowerCase().indexOf(q) !== -1;
+      r.hidden = !hit;
+      if (hit) shown++;
+    });
+    empty.hidden = shown !== 0;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); }
+  });
+
+  // Copy-to-clipboard for the clone command
+  document.querySelectorAll('.copy-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard) { navigator.clipboard.writeText(b.dataset.clone).then(done); }
+    });
+  });
+})();
+</script>
+JSEOF
+    echo "</body></html>"
 } > "$SITE_DIR/index.html"
 
 # Create root last_commit file
@@ -133,8 +183,11 @@ HEADER_HTML="<div style=\"background-color: #1b1b1f; border-bottom: 1px solid #2
 
 FOOTER_HTML="<div style=\"text-align: center; padding: 24px 16px; font-size: 13px; color: #9c9ca4; border-top: 1px solid #2e2e34; margin-top: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;\">Site Built: $BUILD_TIME | git-mirror commit: <a href=\"https://github.com/$REPO_NAME/commit/$MIRROR_FULL_HASH\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">$MIRROR_COMMIT_HASH</a> [<a href=\"/last_commit\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">raw info</a>]<br>Originally created with <a href=\"https://github.com/antonmedv/gitmal\" target=\"_blank\" style=\"color: #6eb6ff; text-decoration: none;\">gitmal</a> | Modified by <a href=\"https://github.com/notamitgamer\" style=\"color: #6eb6ff; text-decoration: none;\">notamitgamer</a></div>"
 
+# Header (with "Back to Repositories") goes on every page except the root index itself
+find "$SITE_DIR" -name "*.html" ! -path "$SITE_DIR/index.html" -print0 | xargs -0 sed -i \
+    -e "s~<body>~<body>\n$HEADER_HTML~g"
+# Footer goes on every page
 find "$SITE_DIR" -name "*.html" -print0 | xargs -0 sed -i \
-    -e "s~<body>~<body>\n$HEADER_HTML~g" \
     -e "s~</body>~$FOOTER_HTML\n</body>~g"
 
 # Copy CNAME if present
