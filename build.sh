@@ -7,11 +7,15 @@ export PUBLIC_DIR="$BASE_DIR/public"
 
 mkdir -p "$REPOS_DIR" "$PUBLIC_DIR"
 
-echo "[*] Fetching public repository list for notamitgamer..."
-REPO_LIST=$(curl -s "https://api.github.com/users/notamitgamer/repos?type=public&per_page=100" | jq -r '.[].name')
+echo "[*] Fetching public repository list and descriptions from GitHub..."
+# Extract repo name and description separated by a tab
+curl -s "https://api.github.com/users/notamitgamer/repos?type=public&per_page=100" | \
+  jq -r '.[] | [.name, (.description // "No description provided")] | @tsv' > /tmp/repos_meta.tsv
 
-echo "[*] Processing repositories concurrently with worker.sh..."
-echo "$REPO_LIST" | xargs -P 4 -n 1 ./worker.sh
+echo "[*] Processing repositories concurrently..."
+while IFS=$'\t' read -r repo desc; do
+  echo "$repo" "$desc"
+done < /tmp/repos_meta.tsv | xargs -P 4 -n 2 ./worker.sh
 
 echo "[*] Generating master index..."
 cd "$PUBLIC_DIR" || exit 1
