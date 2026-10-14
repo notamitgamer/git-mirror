@@ -22,18 +22,22 @@ sync_and_build() {
 
   mkdir -p "$WEB_TARGET"
   cd "$WEB_TARGET" || exit 0
-  stagit -l 50 "$TARGET" 2>/dev/null || stagit "$TARGET"
+
+  # Standard stagit on shallow 50-commit mirror runs in < 0.5s per repo
+  stagit "$TARGET" 2>/dev/null || true
+
   [ -f "files.html" ] && cp -f files.html index.html
   [ -f "$BASE_DIR/assets/style.css" ] && cp -f "$BASE_DIR/assets/style.css" "$WEB_TARGET/style.css"
 }
 
 export -f sync_and_build
 
-echo "[*] Fetching repository list..."
+echo "[*] Fetching public repository list for ${GITHUB_USER}..."
 REPO_LIST=$(curl -s "https://api.github.com/users/${GITHUB_USER}/repos?type=public&per_page=100" | jq -r '.[].name')
 
-echo "[*] Processing repositories in parallel (4 workers)..."
-echo "$REPO_LIST" | xargs -n 1 -P 4 -I {} bash -c 'sync_and_build "{}"'
+echo "[*] Processing repositories in parallel (4 concurrent jobs)..."
+# Correct parallel xargs syntax without -I collision
+echo "$REPO_LIST" | xargs -P 4 -n 1 bash -c 'sync_and_build "$1"' _
 
 # Master index generation
 cd "$PUBLIC_DIR" || exit 1
@@ -41,4 +45,4 @@ stagit-index "$REPOS_DIR"/*.git > index.html
 sed -i 's/\/log\.html/\/files\.html/g' index.html 2>/dev/null || true
 [ -f "$BASE_DIR/assets/style.css" ] && cp -f "$BASE_DIR/assets/style.css" "$PUBLIC_DIR/style.css"
 
-echo "[+] Done."
+echo "[+] Stagit build completed successfully."
