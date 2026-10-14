@@ -70,6 +70,18 @@ echo "$REPOS_JSON" | jq -c '.' | while read -r repo_info; do
         --name "$REPO" \
         --theme github-dark
 
+    # --- git clone support over plain HTTP ("dumb" protocol) ---
+    # Git's bare-repo files (HEAD, info/, objects/, refs/, packed-refs) don't clash with
+    # gitmal's output (index.html, blob/, commit/, commits/, raw/, ...), so they can live
+    # in the same folder. That makes `git clone https://git.amit.is-a.dev/<repo>` work.
+    BARE_DIR="$REPOS_DIR/$REPO.bare"
+    git clone --bare --quiet "https://github.com/$USERNAME/$REPO.git" "$BARE_DIR"
+    git --git-dir="$BARE_DIR" update-server-info
+    for item in HEAD info objects refs packed-refs; do
+        if [ -e "$BARE_DIR/$item" ]; then cp -r "$BARE_DIR/$item" "$SITE_DIR/$REPO/$item"; fi
+    done
+    rm -rf "$BARE_DIR"
+
     # Copy assets into each repo subfolder safely
     if [ -f "$SITE_DIR/style.css" ]; then cp "$SITE_DIR/style.css" "$SITE_DIR/$REPO/style.css"; fi
     if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" "$SITE_DIR/$REPO/logo.png"; fi
@@ -109,6 +121,9 @@ Commit: $MIRROR_FULL_HASH
 Commit Date: $MIRROR_COMMIT_DATE
 Build Date: $BUILD_TIME
 EOF
+
+# Fingerprint of repo state, read by the workflow's change detection on the next run
+echo "${FINGERPRINT:-none}" > "$SITE_DIR/fingerprint.txt"
 
 # 5. Inject formatted build header and footer with INLINE styles to match Gitmal
 echo "------------------------------------------------"
