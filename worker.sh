@@ -52,9 +52,15 @@ echo "$USERNAME" > "$TARGET/owner"
 )
 
 # 3a. File list for the in-page file search (HEAD tree, JSON array of paths)
-git -C "$TARGET" ls-tree -r --name-only -z HEAD 2>/dev/null | python3 -c 'import sys,json
-paths=[p for p in sys.stdin.buffer.read().decode("utf-8","replace").split("\0") if p]
-print(json.dumps(paths,separators=(",",":")))' > "$WEB_TARGET/search.json" 2>/dev/null || echo '[]' > "$WEB_TARGET/search.json"
+# (gitlinks/submodules have no stagit page, so they are left out)
+git -C "$TARGET" ls-tree -r -z HEAD 2>/dev/null | python3 -c 'import sys,json
+out=[]
+for ent in sys.stdin.buffer.read().decode("utf-8","replace").split("\0"):
+    if "\t" not in ent: continue
+    meta,path=ent.split("\t",1)
+    if meta.split()[1] == "commit": continue
+    out.append(path)
+print(json.dumps(out,separators=(",",":")))' > "$WEB_TARGET/search.json" 2>/dev/null || echo '[]' > "$WEB_TARGET/search.json"
 
 # 3b. Publish the bare repo so `git clone $SITE_BASE_URL/$REPO` works (dumb HTTP)
 (

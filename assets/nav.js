@@ -1,19 +1,67 @@
 (() => {
-  // Copy-to-clipboard for clone commands
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button.copy');
-    if (!btn) return;
-    const text = btn.dataset.copy;
-    try { await navigator.clipboard.writeText(text); }
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); return true; }
     catch {
       const t = document.createElement('textarea');
       t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
       document.body.appendChild(t); t.select();
-      try { document.execCommand('copy'); } catch {}
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch {}
       t.remove();
+      return ok;
     }
+  };
+
+  // Copy-to-clipboard for clone commands
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button.copy');
+    if (!btn) return;
+    await copyText(btn.dataset.copy);
     btn.classList.add('done');
     setTimeout(() => btn.classList.remove('done'), 1500);
+  });
+
+  // Share: native share sheet (mobile + supporting desktops), fallback = copy the page link
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button.share');
+    if (!btn) return;
+    const data = { title: document.title, url: location.href };
+    const label = btn.querySelector('span');
+    const flash = (msg) => {
+      const old = label.textContent;
+      label.textContent = msg; btn.classList.add('done');
+      setTimeout(() => { label.textContent = old; btn.classList.remove('done'); }, 1600);
+    };
+    if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
+      try { await navigator.share(data); return; }
+      catch (err) { if (err && err.name === 'AbortError') return; /* else fall through to copy */ }
+    }
+    flash((await copyText(data.url)) ? 'Link copied' : 'Copy failed');
+  });
+
+  // Theme toggle: auto (follow system) -> light -> dark
+  const root = document.documentElement;
+  const modes = ['auto', 'light', 'dark'];
+  const current = () => root.getAttribute('data-theme') || 'auto';
+  const paint = (b) => { b.title = 'Theme: ' + current(); b.setAttribute('aria-label', 'Change theme (now ' + current() + ')'); };
+  document.querySelectorAll('button.theme').forEach(paint);
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button.theme');
+    if (!b) return;
+    const next = modes[(modes.indexOf(current()) + 1) % modes.length];
+    if (next === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', next);
+    try { next === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', next); } catch {}
+    document.querySelectorAll('button.theme').forEach(paint);
+  });
+
+  // Relative "synced 12 min ago" (static text stays as the no-JS fallback)
+  document.querySelectorAll('time[data-rel]').forEach((t) => {
+    const d = new Date(t.getAttribute('datetime'));
+    if (isNaN(d)) return;
+    const s = (Date.now() - d) / 1000, m = Math.round(s / 60), h = Math.round(s / 3600);
+    const ago = s < 90 ? 'just now' : m < 90 ? m + ' min ago' : h < 36 ? h + ' h ago' : Math.round(s / 86400) + ' d ago';
+    t.textContent = (t.dataset.prefix ? t.dataset.prefix + ' ' : '') + ago;
+    if (s > 3 * 3600) t.classList.add('stale');
   });
 
   // ---------- Search / sort ----------
