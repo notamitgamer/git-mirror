@@ -83,13 +83,15 @@ FILE_SEARCH = (
     '<option value="ext">File type</option></select></div>'
     '<div id="file-results" class="results" hidden><div class="results-head"><span id="file-count"></span></div><ul></ul></div>')
 
-def process_repo_page(doc, repo, rel):
+def process_repo_page(doc, repo, rel, top_level=False):
     doc = re.sub(r'<body>\s*<table[^>]*>', f'<body id="top" data-repo="{H.escape(repo)}"><table id="header">', doc, 1)
     doc = pill_nav(doc, os.path.basename(rel))
     bar = (f'<div class="clone-bar"><span class="clone-label">clone</span>'
            f'<code>{H.escape(clone_cmd(repo))}</code>{copy_btn(clone_cmd(repo))}'
            f'<a class="gh" href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">GitHub {ICON_GH}</a></div>')
-    bar += FILE_SEARCH
+    # File search only on the repo's Files page, not on file/commit/log pages
+    if top_level and os.path.basename(rel) == "files.html":
+        bar += FILE_SEARCH
     if re.search(r'<hr\s*/?>', doc):
         doc = re.sub(r'<hr\s*/?>', lambda _: bar, doc, 1)
     elif '</table>' in doc:
@@ -165,7 +167,7 @@ for dirpath, _d, files in os.walk(SITE):
         if rel == "index.html":
             doc = build_index(doc)
         elif len(parts) >= 2 and rel != "404.html":
-            doc = process_repo_page(doc, parts[0], rel if len(parts) == 2 else os.path.basename(rel))
+            doc = process_repo_page(doc, parts[0], rel if len(parts) == 2 else os.path.basename(rel), top_level=(len(parts) == 2))
         doc = doc.replace('</body>', footer() + '\n</body>', 1)
         with open(path, "w", encoding="utf-8") as f:
             f.write(doc)
