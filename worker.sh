@@ -25,17 +25,11 @@ WEB_TARGET="$SITE_DIR/$REPO"
 
 mkdir -p "$REPOS_DIR" "$WEB_TARGET"
 
-# 1. Full bare clone/fetch (full history is required so the dumb-HTTP clone URL works)
-if [ -d "$TARGET" ] && [ -f "$TARGET/shallow" ]; then
-    # Older cached shallow clone: convert to a full one
-    timeout 120s git -C "$TARGET" fetch --unshallow --update-head-ok origin \
-        '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>/dev/null || rm -rf "$TARGET"
-fi
+# 1. Shallow clone/fetch
 if [ ! -d "$TARGET" ]; then
-    timeout 120s git clone --bare "https://github.com/$USERNAME/$REPO.git" "$TARGET" 2>/dev/null || { rm -rf "$TARGET"; exit 0; }
+    timeout 25s git clone --depth 50 --bare "https://github.com/$USERNAME/$REPO.git" "$TARGET" 2>/dev/null || exit 0
 else
-    timeout 60s git -C "$TARGET" fetch --prune --update-head-ok origin \
-        '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>/dev/null || true
+    timeout 20s git -C "$TARGET" fetch --depth 50 origin 2>/dev/null || true
 fi
 
 # 2. Set stagit metadata
@@ -61,16 +55,6 @@ for ent in sys.stdin.buffer.read().decode("utf-8","replace").split("\0"):
     if meta.split()[1] == "commit": continue
     out.append(path)
 print(json.dumps(out,separators=(",",":")))' > "$WEB_TARGET/search.json" 2>/dev/null || echo '[]' > "$WEB_TARGET/search.json"
-
-# 3b. Publish the bare repo so `git clone $SITE_BASE_URL/$REPO` works (dumb HTTP)
-(
-    timeout 60s git -C "$TARGET" repack -a -d -q 2>/dev/null || true
-    git -C "$TARGET" update-server-info 2>/dev/null || true
-    cp -f "$TARGET/HEAD" "$WEB_TARGET/HEAD"
-    [ -f "$TARGET/packed-refs" ] && cp -f "$TARGET/packed-refs" "$WEB_TARGET/packed-refs"
-    rm -rf "$WEB_TARGET/info" "$WEB_TARGET/objects" "$WEB_TARGET/refs"
-    cp -r "$TARGET/info" "$TARGET/objects" "$TARGET/refs" "$WEB_TARGET/" 2>/dev/null || true
-)
 
 # 4. Make files.html default landing page
 [ -f "$WEB_TARGET/files.html" ] && cp -f "$WEB_TARGET/files.html" "$WEB_TARGET/index.html"

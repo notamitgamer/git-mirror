@@ -26,32 +26,17 @@
     const btn = e.target.closest('button.share');
     if (!btn) return;
     const data = { title: document.title, url: location.href };
-    const label = btn.querySelector('span');
     const flash = (msg) => {
-      const old = label.textContent;
-      label.textContent = msg; btn.classList.add('done');
-      setTimeout(() => { label.textContent = old; btn.classList.remove('done'); }, 1600);
+      const t = document.createElement('div');
+      t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1800);
     };
     if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
       try { await navigator.share(data); return; }
       catch (err) { if (err && err.name === 'AbortError') return; /* else fall through to copy */ }
     }
     flash((await copyText(data.url)) ? 'Link copied' : 'Copy failed');
-  });
-
-  // Theme toggle: auto (follow system) -> light -> dark
-  const root = document.documentElement;
-  const modes = ['auto', 'light', 'dark'];
-  const current = () => root.getAttribute('data-theme') || 'auto';
-  const paint = (b) => { b.title = 'Theme: ' + current(); b.setAttribute('aria-label', 'Change theme (now ' + current() + ')'); };
-  document.querySelectorAll('button.theme').forEach(paint);
-  document.addEventListener('click', (e) => {
-    const b = e.target.closest('button.theme');
-    if (!b) return;
-    const next = modes[(modes.indexOf(current()) + 1) % modes.length];
-    if (next === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', next);
-    try { next === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', next); } catch {}
-    document.querySelectorAll('button.theme').forEach(paint);
   });
 
   // Relative "synced 12 min ago" (static text stays as the no-JS fallback)
