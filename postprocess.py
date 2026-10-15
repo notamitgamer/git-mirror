@@ -23,6 +23,12 @@ ICON_SHARE = ('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" strok
               '<circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>')
 SHARE_BTN = f'<button type="button" class="share" aria-label="Share this page">{ICON_SHARE}<span>Share</span></button>'
 
+ICON_THEME = ('<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" '
+              'stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>')
+THEME_BTN = f'<button type="button" class="theme" aria-label="Change theme" title="Theme: auto">{ICON_THEME}</button>'
+THEME_INIT = ('<script>try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")'
+              'document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>')
+
 def clone_cmd(repo):
     # Served by this site itself (static dumb-HTTP git); see worker.sh step 3b
     return f"git clone {BASE}/{repo}"
@@ -91,7 +97,8 @@ def head_inject(doc, rel="index.html"):
     doc = re.sub(r'href="((?:\.\./)*style\.css)(?:\?[^"]*)?"', lambda m: f'href="{m.group(1)}?v={SHORT}"', doc)
     if 'name="viewport"' not in doc:
         doc = re.sub(r'<head>', '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">', doc, 1)
-    extra = ('<meta name="color-scheme" content="dark"><meta name="theme-color" content="#181825">'
+    extra = ('<meta name="color-scheme" content="dark light"><meta name="theme-color" content="#181825" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#eff1f5" media="(prefers-color-scheme: light)">'
+             ''+THEME_INIT+''
              '<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png">'
              '<meta name="application-name" content="Git"><meta name="apple-mobile-web-app-title" content="Git">'
              '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">'
@@ -108,7 +115,7 @@ def pill_nav(doc, current):
         for href, label in links:
             cur = href == current or (current == "index.html" and href == "files.html")
             out.append(f'<a href="{href}"' + (' aria-current="page"' if cur else '') + f'>{label}</a>')
-        return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + SHARE_BTN + '</nav></td></tr>'
+        return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + SHARE_BTN + THEME_BTN + '</nav></td></tr>'
     return re.sub(r'<tr>\s*<td>\s*</td>\s*<td>((?:(?!</td>).)*?log\.html(?:(?!</td>).)*?)</td>\s*</tr>', repl, doc, 1, re.S)
 
 FILE_SEARCH = (
@@ -161,7 +168,7 @@ def build_index(doc):
             f'<div class="clone-bar compact"><code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
     hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
-            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly · {sync_time("synced")}</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</header>'
+            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly · {sync_time("synced")}</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + THEME_BTN + '</header>'
             '<div class="toolbar"><input id="q" type="search" placeholder="Search repositories and files…" autocomplete="off" aria-label="Search repositories and files">'
             '<select id="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option>'
             '<option value="oldest">Least recently updated</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option></select></div>'

@@ -39,6 +39,21 @@
     flash((await copyText(data.url)) ? 'Link copied' : 'Copy failed');
   });
 
+  // Theme toggle: auto (follow system) -> light -> dark
+  const root = document.documentElement;
+  const modes = ['auto', 'light', 'dark'];
+  const current = () => root.getAttribute('data-theme') || 'auto';
+  const paint = (b) => { b.title = 'Theme: ' + current(); b.setAttribute('aria-label', 'Change theme (now ' + current() + ')'); };
+  document.querySelectorAll('button.theme').forEach(paint);
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button.theme');
+    if (!b) return;
+    const next = modes[(modes.indexOf(current()) + 1) % modes.length];
+    if (next === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', next);
+    try { next === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', next); } catch {}
+    document.querySelectorAll('button.theme').forEach(paint);
+  });
+
   // Relative "synced 12 min ago" (static text stays as the no-JS fallback)
   document.querySelectorAll('time[data-rel]').forEach((t) => {
     const d = new Date(t.getAttribute('datetime'));
