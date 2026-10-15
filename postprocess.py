@@ -19,7 +19,8 @@ ICON_GH = ('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="
            'stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>')
 
 def clone_cmd(repo):
-    return f"git clone https://github.com/{USER}/{repo}.git"
+    # Served by this site itself (static dumb-HTTP git); see worker.sh step 3b
+    return f"git clone {BASE}/{repo}"
 
 def copy_btn(text, label="Copy"):
     return (f'<button type="button" class="copy" data-copy="{H.escape(text, quote=True)}" '
@@ -75,14 +76,22 @@ def pill_nav(doc, current):
         return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + '</nav></td></tr>'
     return re.sub(r'<tr>\s*<td>\s*</td>\s*<td>((?:(?!</td>).)*?log\.html(?:(?!</td>).)*?)</td>\s*</tr>', repl, doc, 1, re.S)
 
+FILE_SEARCH = (
+    '<div class="toolbar" id="repo-tools"><input id="fq" type="search" placeholder="Search files in this repo…" '
+    'autocomplete="off" aria-label="Search files"><select id="fsort" aria-label="Sort results">'
+    '<option value="rel">Best match</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option>'
+    '<option value="ext">File type</option></select></div>'
+    '<div id="file-results" class="results" hidden><div class="results-head"><span id="file-count"></span></div><ul></ul></div>')
+
 def process_repo_page(doc, repo, rel):
-    doc = re.sub(r'<body>\s*<table[^>]*>', '<body id="top"><table id="header">', doc, 1)
+    doc = re.sub(r'<body>\s*<table[^>]*>', f'<body id="top" data-repo="{H.escape(repo)}"><table id="header">', doc, 1)
     doc = pill_nav(doc, os.path.basename(rel))
     bar = (f'<div class="clone-bar"><span class="clone-label">clone</span>'
            f'<code>{H.escape(clone_cmd(repo))}</code>{copy_btn(clone_cmd(repo))}'
            f'<a class="gh" href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">GitHub {ICON_GH}</a></div>')
+    bar += FILE_SEARCH
     if re.search(r'<hr\s*/?>', doc):
-        doc = re.sub(r'<hr\s*/?>', bar, doc, 1)
+        doc = re.sub(r'<hr\s*/?>', lambda _: bar, doc, 1)
     elif '</table>' in doc:
         doc = doc.replace('</table>', '</table>' + bar, 1)
     return doc
@@ -108,20 +117,37 @@ def build_index(doc):
             desc = '<span class="muted">No description</span>'
         cmd = clone_cmd(re.sub(r'<.*?>', '', name))
         items.append(
-            f'<li class="repo" data-name="{H.escape(re.sub("<.*?>","",name).lower())}">'
+            f'<li class="repo" data-name="{H.escape(re.sub("<.*?>","",name).lower())}" data-date="{H.escape(last)}">'
             f'<div class="repo-top"><a class="repo-name" href="{href}">{name}</a><time>{last}</time></div>'
             f'<p class="repo-desc">{desc}</p>'
             f'<div class="clone-bar compact"><code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
     hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
             f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly</p></div></header>'
-            f'<div class="search"><input id="q" type="search" placeholder="Filter repositories…" autocomplete="off" aria-label="Filter repositories"></div>')
+            '<div class="toolbar"><input id="q" type="search" placeholder="Search repositories and files…" autocomplete="off" aria-label="Search repositories and files">'
+            '<select id="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option>'
+            '<option value="oldest">Least recently updated</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option></select></div>'
+            '<div id="file-results" class="results" hidden><div class="results-head"><span id="file-count"></span>'
+            '<select id="fsort" aria-label="Sort file results"><option value="rel">Best match</option><option value="az">Name A–Z</option>'
+            '<option value="za">Name Z–A</option><option value="ext">File type</option></select></div><ul></ul></div>')
     doc = re.sub(r'<body>\s*<table[^>]*>.*?</table>\s*(<hr\s*/?>)?', '<body id="top">' + hero, doc, 1, re.S)
     doc = re.sub(r'<table id="index">.*?</table>', lambda _: grid, doc, 1, re.S)
     prefetch = ('<script type="speculationrules">{"prefetch":[{"urls":[' +
                 ','.join(f'"{re.search(r"""href="([^"]+)""", i).group(1)}"' for i in re.findall(r'<a class="repo-name" href="[^"]+"', ''.join(items))) +
                 '],"eagerness":"eager"}]}</script>')
     return doc.replace('</head>', prefetch + '\n</head>', 1)
+
+import json
+_idx = {}
+for _e in sorted(os.listdir(SITE)):
+    _f = os.path.join(SITE, _e, "search.json")
+    if os.path.isfile(_f):
+        try:
+            _idx[_e] = json.load(open(_f, encoding="utf-8"))
+        except Exception:
+            pass
+with open(os.path.join(SITE, "search-index.json"), "w", encoding="utf-8") as _f:
+    json.dump(_idx, _f, separators=(",", ":"))
 
 count = 0
 for dirpath, _d, files in os.walk(SITE):
