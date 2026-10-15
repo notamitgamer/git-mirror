@@ -66,7 +66,11 @@ def head_inject(doc):
     if 'name="viewport"' not in doc:
         doc = re.sub(r'<head>', '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">', doc, 1)
     extra = ('<meta name="color-scheme" content="dark"><meta name="theme-color" content="#181825">'
+             '<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png">'
+             '<meta name="application-name" content="Git"><meta name="apple-mobile-web-app-title" content="Git">'
+             '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">'
              '<script src="/nav.js?v='+SHORT+'" defer></script>' + SPEC)
+    doc = doc.replace('<title>Repositories</title>', '<title>Git · Repositories</title>', 1)
     return doc.replace('</head>', extra + '\n</head>', 1)
 
 def pill_nav(doc, current):

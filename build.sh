@@ -25,7 +25,7 @@ mkdir -p "$REPOS_DIR" "$SITE_DIR"
 
 echo "==> Copying root assets..."
 if [ -d "$ASSETS_DIR" ]; then
-    for f in style.css nav.js favicon.png logo.png icon.png; do
+    for f in style.css nav.js favicon.png logo.png icon.png icon.svg icon-192.png icon-512.png apple-touch-icon.png manifest.webmanifest; do
         if [ -f "$ASSETS_DIR/$f" ]; then
             cp "$ASSETS_DIR/$f" "$SITE_DIR/$f"
         fi
