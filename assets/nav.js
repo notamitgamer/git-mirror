@@ -39,6 +39,16 @@
     flash((await copyText(data.url)) ? 'Link copied' : 'Copy failed');
   });
 
+  // Relative "synced 12 min ago" (static text stays as the no-JS fallback)
+  document.querySelectorAll('time[data-rel]').forEach((t) => {
+    const d = new Date(t.getAttribute('datetime'));
+    if (isNaN(d)) return;
+    const s = (Date.now() - d) / 1000, m = Math.round(s / 60), h = Math.round(s / 3600);
+    const ago = s < 90 ? 'just now' : m < 90 ? m + ' min ago' : h < 36 ? h + ' h ago' : Math.round(s / 86400) + ' d ago';
+    t.textContent = (t.dataset.prefix ? t.dataset.prefix + ' ' : '') + ago;
+    if (s > 3 * 3600) t.classList.add('stale');
+  });
+
   // ---------- Search / sort ----------
   const $ = (id) => document.getElementById(id);
   const ext = (p) => { const f = p.split('/').pop(); const i = f.lastIndexOf('.'); return i > 0 ? f.slice(i + 1).toLowerCase() : ''; };

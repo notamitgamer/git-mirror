@@ -60,7 +60,33 @@ def footer():
 SPEC = ('<script type="speculationrules">{"prerender":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}],'
         '"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"conservative"}]}</script>')
 
-def head_inject(doc):
+BUILD_ISO = BUILD_TIME.replace(" UTC", "Z").replace(" ", "T")
+
+def sync_time(prefix="Synced"):
+    return (f'<time class="sync" data-rel data-prefix="{prefix}" datetime="{BUILD_ISO}" '
+            f'title="{BUILD_TIME}">{prefix} {BUILD_TIME}</time>')
+
+def social_meta(doc, rel):
+    t = re.search(r'<title>(.*?)</title>', doc, re.S)
+    title = H.unescape(t.group(1)).strip() if t else "Git"
+    m = re.search(r'<span class="desc">(.*?)</span>', doc, re.S)
+    desc = re.sub(r'<.*?>', '', H.unescape(m.group(1))).strip() if m else ""
+    if not desc or desc == "Repositories":
+        desc = f"Browse and clone the public repositories of {USER}."
+    path = rel.replace(os.sep, "/")
+    if path.endswith("index.html"):
+        path = path[:-len("index.html")]
+    url = f"{BASE}/{path}"
+    e = lambda s: H.escape(s, quote=True)
+    return (f'<link rel="canonical" href="{e(url)}"><meta name="description" content="{e(desc)}">'
+            f'<meta property="og:type" content="website"><meta property="og:site_name" content="Git">'
+            f'<meta property="og:title" content="{e(title)}"><meta property="og:description" content="{e(desc)}">'
+            f'<meta property="og:url" content="{e(url)}"><meta property="og:image" content="{BASE}/icon-512.png">'
+            f'<meta property="og:image:width" content="512"><meta property="og:image:height" content="512">'
+            f'<meta name="twitter:card" content="summary"><meta name="twitter:title" content="{e(title)}">'
+            f'<meta name="twitter:description" content="{e(desc)}"><meta name="twitter:image" content="{BASE}/icon-512.png">')
+
+def head_inject(doc, rel="index.html"):
     # Cache-bust CSS/JS: browsers kept serving the previous style.css after a deploy
     doc = re.sub(r'href="((?:\.\./)*style\.css)(?:\?[^"]*)?"', lambda m: f'href="{m.group(1)}?v={SHORT}"', doc)
     if 'name="viewport"' not in doc:
@@ -71,7 +97,7 @@ def head_inject(doc):
              '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">'
              '<script src="/nav.js?v='+SHORT+'" defer></script>' + SPEC)
     doc = doc.replace('<title>Repositories</title>', '<title>Git · Repositories</title>', 1)
-    return doc.replace('</head>', extra + '\n</head>', 1)
+    return doc.replace('</head>', social_meta(doc, rel) + extra + '\n</head>', 1)
 
 def pill_nav(doc, current):
     def repl(m):
@@ -98,6 +124,7 @@ def process_repo_page(doc, repo, rel, top_level=False):
     bar = (f'<div class="clone-bar"><span class="clone-label">clone</span>'
            f'<code>{H.escape(clone_cmd(repo))}</code>{copy_btn(clone_cmd(repo))}'
            f'<a class="gh" href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">GitHub {ICON_GH}</a></div>')
+    bar += f'<p class="sync-note">Mirror {sync_time("synced")} · rebuilt hourly from GitHub</p>'
     # File search only on the repo's Files page, not on file/commit/log pages
     if top_level and os.path.basename(rel) == "files.html":
         bar += FILE_SEARCH
@@ -134,7 +161,7 @@ def build_index(doc):
             f'<div class="clone-bar compact"><code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
     hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
-            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</header>'
+            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly · {sync_time("synced")}</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</header>'
             '<div class="toolbar"><input id="q" type="search" placeholder="Search repositories and files…" autocomplete="off" aria-label="Search repositories and files">'
             '<select id="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option>'
             '<option value="oldest">Least recently updated</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option></select></div>'
@@ -172,7 +199,7 @@ for dirpath, _d, files in os.walk(SITE):
             doc = f.read()
         if "id=\"site-footer\"" in doc or "</body>" not in doc:
             continue
-        doc = head_inject(doc)
+        doc = head_inject(doc, rel)
         if rel == "index.html":
             doc = build_index(doc)
         elif len(parts) >= 2 and rel != "404.html":

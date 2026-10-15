@@ -138,6 +138,8 @@ table tbody tr:hover td { background: var(--ctp-surface0); }
 td.num, td.filesize { color: var(--ctp-subtext0); text-align: right; white-space: nowrap; }
 table#files td:first-child { color: var(--ctp-overlay0); white-space: nowrap; font-size: 12px; }
 time { color: var(--ctp-overlay0); font-size: 12px; white-space: nowrap; }
+.sync-note { margin: -8px 0 16px; font-size: 12px; color: var(--ctp-overlay0); }
+time.sync.stale { color: var(--ctp-peach); }
 
 tr.folder-header { cursor: pointer; }
 tr.folder-header td { color: var(--ctp-peach); font-weight: 600; }
