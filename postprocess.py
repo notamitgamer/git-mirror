@@ -28,8 +28,8 @@ def gh_cmd(repo):
 
 def clone_rows(repo):
     cmd = gh_cmd(repo)
-    return (f'<div class="clone-row"><span class="clone-label">clone</span>'
-            f'<code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div>')
+    shown = H.escape(cmd).replace("/", "/<wbr>")  # let long URLs wrap at slashes, not mid-word
+    return (f'<div class="clone-row"><code>{shown}</code>{copy_btn(cmd, "")}</div>')
 
 def copy_btn(text, label="Copy"):
     return (f'<button type="button" class="copy" data-copy="{H.escape(text, quote=True)}" '
@@ -93,6 +93,8 @@ def social_meta(doc, rel):
 def head_inject(doc, rel="index.html"):
     # Cache-bust CSS/JS: browsers kept serving the previous style.css after a deploy
     doc = re.sub(r'href="((?:\.\./)*style\.css)(?:\?[^"]*)?"', lambda m: f'href="{m.group(1)}?v={SHORT}"', doc)
+    if 'charset' not in doc[:600].lower():
+        doc = re.sub(r'<head>', '<head>\n<meta charset="utf-8">', doc, 1)
     if 'name="viewport"' not in doc:
         doc = re.sub(r'<head>', '<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">', doc, 1)
     extra = ('<meta name="color-scheme" content="dark"><meta name="theme-color" content="#181825">'
@@ -103,39 +105,42 @@ def head_inject(doc, rel="index.html"):
     doc = doc.replace('<title>Repositories</title>', '<title>Git · Repositories</title>', 1)
     return doc.replace('</head>', social_meta(doc, rel) + extra + '\n</head>', 1)
 
-def pill_nav(doc, current):
-    def repl(m):
-        links = re.findall(r'<a href="([^"]+)">(.*?)</a>', m.group(1), re.S)
-        if not links:
-            return m.group(0)
-        out = []
-        for href, label in links:
-            cur = href == current or (current == "index.html" and href == "files.html")
-            out.append(f'<a href="{href}"' + (' aria-current="page"' if cur else '') + f'>{label}</a>')
-        return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + SHARE_BTN + '</nav></td></tr>'
-    return re.sub(r'<tr>\s*<td>\s*</td>\s*<td>((?:(?!</td>).)*?log\.html(?:(?!</td>).)*?)</td>\s*</tr>', repl, doc, 1, re.S)
-
 FILE_SEARCH = (
-    '<div class="toolbar" id="repo-tools"><input id="fq" type="search" placeholder="Search files in this repo…" '
+    '<div class="toolbar" id="repo-tools"><input id="fq" type="search" placeholder="Search files…" '
     'autocomplete="off" aria-label="Search files"><select id="fsort" aria-label="Sort results">'
     '<option value="rel">Best match</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option>'
     '<option value="ext">File type</option></select></div>'
     '<div id="file-results" class="results" hidden><div class="results-head"><span id="file-count"></span></div><ul></ul></div>')
 
+def build_repo_header(inner, current):
+    img = re.search(r'<img[^>]*src="([^"]*)"', inner)
+    h1 = re.search(r'<h1>(.*?)</h1>', inner, re.S)
+    desc = re.search(r'<span class="desc">(.*?)</span>', inner, re.S)
+    links = re.findall(r'<a href="([^"]+)">(.*?)</a>', inner, re.S)
+    tabs = []
+    for href, label in links:
+        cur = href == current or (current == "index.html" and href == "files.html")
+        tabs.append(f'<a href="{href}"' + (' aria-current="page"' if cur else '') + f'>{label}</a>')
+    logo = (f'<a class="rh-logo" href="/"><img src="{img.group(1)}" alt="" width="36" height="36"></a>' if img else '')
+    d = desc.group(1).strip() if desc else ''
+    return ('<header class="repo-head"><div class="rh-top">' + logo +
+            f'<h1>{h1.group(1) if h1 else ""}</h1></div>' +
+            (f'<p class="rh-desc">{d}</p>' if d else '') +
+            '<nav class="tabs">' + ''.join(tabs) + SHARE_BTN + '</nav></header>')
+
 def process_repo_page(doc, repo, rel, top_level=False):
-    doc = re.sub(r'<body>\s*<table[^>]*>', f'<body id="top" data-repo="{H.escape(repo)}"><table id="header">', doc, 1)
-    doc = pill_nav(doc, os.path.basename(rel))
+    body_open = f'<body id="top" data-repo="{H.escape(repo)}">'
     bar = f'<div class="clone-bar">{clone_rows(repo)}</div>'
-    bar += (f'<p class="sync-note">Mirror {sync_time("synced")} · rebuilt hourly · '
-            f'<a href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">Open on GitHub {ICON_GH}</a></p>')
+    bar += (f'<div class="sync-note"><span>{sync_time("Synced")} · rebuilt hourly</span>'
+            f'<a href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">Open on GitHub {ICON_GH}</a></div>')
     # File search only on the repo's Files page, not on file/commit/log pages
     if top_level and os.path.basename(rel) == "files.html":
         bar += FILE_SEARCH
-    if re.search(r'<hr\s*/?>', doc):
-        doc = re.sub(r'<hr\s*/?>', lambda _: bar, doc, 1)
-    elif '</table>' in doc:
-        doc = doc.replace('</table>', '</table>' + bar, 1)
-    return doc
+    m = re.search(r'<body>\s*<table[^>]*>(.*?)</table>\s*(?:<hr\s*/?>)?', doc, re.S)
+    if not m:
+        return doc.replace('<body>', body_open, 1)
+    header = build_repo_header(m.group(1), os.path.basename(rel))
+    return doc[:m.start()] + body_open + header + bar + doc[m.end():]
 
 def build_index(doc):
     m = re.search(r'<table id="index">(.*?)</table>', doc, re.S)
@@ -163,11 +168,13 @@ def build_index(doc):
             f'<p class="repo-desc">{desc}</p>'
             f'<div class="clone-bar compact">{clone_rows(rname)}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
-    hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
-            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly · {sync_time("synced")}</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</header>'
-            '<div class="toolbar"><input id="q" type="search" placeholder="Search repositories and files…" autocomplete="off" aria-label="Search repositories and files">'
-            '<select id="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option>'
-            '<option value="oldest">Least recently updated</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option></select></div>'
+    hero = ('<header id="hero"><div class="hero-row"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="36" height="36"></a>'
+            '<h1>Repositories</h1>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</div>'
+            f'<p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a>'
+            f' · {sync_time("synced")}</p></header>'
+            '<div class="toolbar"><input id="q" type="search" placeholder="Search repos &amp; files…" autocomplete="off" aria-label="Search repositories and files">'
+            '<select id="sort" aria-label="Sort repositories"><option value="updated">Newest</option>'
+            '<option value="oldest">Oldest</option><option value="az">A–Z</option><option value="za">Z–A</option></select></div>'
             '<div id="file-results" class="results" hidden><div class="results-head"><span id="file-count"></span>'
             '<select id="fsort" aria-label="Sort file results"><option value="rel">Best match</option><option value="az">Name A–Z</option>'
             '<option value="za">Name Z–A</option><option value="ext">File type</option></select></div><ul></ul></div>')
