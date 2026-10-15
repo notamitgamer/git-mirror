@@ -18,6 +18,11 @@ ICON_OK = ('<svg class="ic-ok" viewBox="0 0 24 24" width="14" height="14" fill="
 ICON_GH = ('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" '
            'stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>')
 
+ICON_SHARE = ('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" '
+              'stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>'
+              '<circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>')
+SHARE_BTN = f'<button type="button" class="share" aria-label="Share this page">{ICON_SHARE}<span>Share</span></button>'
+
 def clone_cmd(repo):
     # Served by this site itself (static dumb-HTTP git); see worker.sh step 3b
     return f"git clone {BASE}/{repo}"
@@ -73,7 +78,7 @@ def pill_nav(doc, current):
         for href, label in links:
             cur = href == current or (current == "index.html" and href == "files.html")
             out.append(f'<a href="{href}"' + (' aria-current="page"' if cur else '') + f'>{label}</a>')
-        return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + '</nav></td></tr>'
+        return '<tr><td colspan="2"><nav class="tabs">' + ''.join(out) + SHARE_BTN + '</nav></td></tr>'
     return re.sub(r'<tr>\s*<td>\s*</td>\s*<td>((?:(?!</td>).)*?log\.html(?:(?!</td>).)*?)</td>\s*</tr>', repl, doc, 1, re.S)
 
 FILE_SEARCH = (
@@ -125,7 +130,7 @@ def build_index(doc):
             f'<div class="clone-bar compact"><code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
     hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
-            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly</p></div></header>'
+            f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + '</header>'
             '<div class="toolbar"><input id="q" type="search" placeholder="Search repositories and files…" autocomplete="off" aria-label="Search repositories and files">'
             '<select id="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option>'
             '<option value="oldest">Least recently updated</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option></select></div>'

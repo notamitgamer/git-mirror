@@ -47,6 +47,15 @@ color: var(--ctp-subtext0); background: var(--ctp-mantle); border: 1px solid var
 nav.tabs a:hover { color: var(--ctp-text); border-color: var(--ctp-surface2); text-decoration: none; }
 nav.tabs a[aria-current="page"] { color: var(--ctp-crust); background: var(--ctp-mauve); border-color: var(--ctp-mauve); font-weight: 600; }
 
+button.share {
+display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; margin-left: auto;
+font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 999px;
+color: var(--ctp-subtext0); background: var(--ctp-mantle); border: 1px solid var(--ctp-surface0);
+}
+button.share:hover { color: var(--ctp-text); border-color: var(--ctp-surface2); }
+button.share.done { color: var(--ctp-green); border-color: var(--ctp-green); }
+#hero .hero-share { margin-left: auto; }
+
 /* ---------- Clone bar ---------- */
 .clone-bar {
 display: flex; align-items: center; gap: 10px; margin: 14px 0 18px;
@@ -183,6 +192,9 @@ margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--ctp-surface0); 
 /* ---------- Mobile ---------- */
 @media (max-width: 760px) {
 nav.tabs a { padding: 3px 10px; font-size: 12.5px; }
+button.share { padding: 3px 10px; font-size: 12.5px; }
+#hero .hero-share span { display: none; }
+#hero .hero-share { padding: 7px; }
 table#header tr:first-child td:first-child { width: 48px; padding-right: 10px; }
 table#header img { width: 38px; height: 38px; }
 body { font-size: 13.5px; padding-top: 14px; }
