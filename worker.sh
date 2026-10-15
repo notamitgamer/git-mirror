@@ -25,11 +25,17 @@ WEB_TARGET="$SITE_DIR/$REPO"
 
 mkdir -p "$REPOS_DIR" "$WEB_TARGET"
 
-# 1. Shallow clone/fetch
+# 1. Full bare clone/fetch (full history is required so the dumb-HTTP clone URL works)
+if [ -d "$TARGET" ] && [ -f "$TARGET/shallow" ]; then
+    # Older cached shallow clone: convert to a full one
+    timeout 120s git -C "$TARGET" fetch --unshallow --update-head-ok origin \
+        '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>/dev/null || rm -rf "$TARGET"
+fi
 if [ ! -d "$TARGET" ]; then
-    timeout 25s git clone --depth 50 --bare "https://github.com/$USERNAME/$REPO.git" "$TARGET" 2>/dev/null || exit 0
+    timeout 120s git clone --bare "https://github.com/$USERNAME/$REPO.git" "$TARGET" 2>/dev/null || { rm -rf "$TARGET"; exit 0; }
 else
-    timeout 20s git -C "$TARGET" fetch --depth 50 origin 2>/dev/null || true
+    timeout 60s git -C "$TARGET" fetch --prune --update-head-ok origin \
+        '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>/dev/null || true
 fi
 
 # 2. Set stagit metadata
@@ -39,10 +45,25 @@ echo "$USERNAME" > "$TARGET/owner"
 # 3. Generate stagit pages
 (
     cd "$WEB_TARGET"
-    stagit "$TARGET" 2>/dev/null || true
+    stagit -l 50 "$TARGET" 2>/dev/null || true
     if [ -f "$SITE_DIR/style.css" ]; then cp "$SITE_DIR/style.css" style.css; fi
     if [ -f "$SITE_DIR/logo.png" ]; then cp "$SITE_DIR/logo.png" logo.png; fi
     if [ -f "$SITE_DIR/favicon.png" ]; then cp "$SITE_DIR/favicon.png" favicon.png; fi
+)
+
+# 3a. File list for the in-page file search (HEAD tree, JSON array of paths)
+git -C "$TARGET" ls-tree -r --name-only -z HEAD 2>/dev/null | python3 -c 'import sys,json
+paths=[p for p in sys.stdin.buffer.read().decode("utf-8","replace").split("\0") if p]
+print(json.dumps(paths,separators=(",",":")))' > "$WEB_TARGET/search.json" 2>/dev/null || echo '[]' > "$WEB_TARGET/search.json"
+
+# 3b. Publish the bare repo so `git clone $SITE_BASE_URL/$REPO` works (dumb HTTP)
+(
+    timeout 60s git -C "$TARGET" repack -a -d -q 2>/dev/null || true
+    git -C "$TARGET" update-server-info 2>/dev/null || true
+    cp -f "$TARGET/HEAD" "$WEB_TARGET/HEAD"
+    [ -f "$TARGET/packed-refs" ] && cp -f "$TARGET/packed-refs" "$WEB_TARGET/packed-refs"
+    rm -rf "$WEB_TARGET/info" "$WEB_TARGET/objects" "$WEB_TARGET/refs"
+    cp -r "$TARGET/info" "$TARGET/objects" "$TARGET/refs" "$WEB_TARGET/" 2>/dev/null || true
 )
 
 # 4. Make files.html default landing page
@@ -104,7 +125,8 @@ NAV_LINKS="<a href=\"files.html\" class=\"nav-arrow\">${BACK_ARROW_SVG}</a>"
     echo "<div id=\"activity-meta\">"
     echo "<h2>Activity record of '<u>$USERNAME/$REPO</u>'</h2><br>"
     echo "<p>GitHub: <a href=\"https://github.com/$USERNAME/$REPO\" target=\"_blank\">github.com/$USERNAME/$REPO</a></p>"
-    echo "<p>Clone: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p><br>"
+    echo "<p>Clone: <code>git clone ${SITE_BASE_URL:-https://github.com/$USERNAME}/$REPO</code></p>"
+    echo "<p>Clone from GitHub: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p><br>"
     echo "<p>Last commit: <a href=\"https://github.com/$USERNAME/$REPO/commit/$LAST_COMMIT_HASH\" target=\"_blank\">$LAST_COMMIT_SHORT</a> ($LAST_COMMIT_TIME)</p>"
     echo "<p>Repository size (approx): $REPO_SIZE</p>"
     echo "</div>"
