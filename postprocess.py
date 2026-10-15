@@ -33,6 +33,16 @@ def clone_cmd(repo):
     # Served by this site itself (static dumb-HTTP git); see worker.sh step 3b
     return f"git clone {BASE}/{repo}"
 
+def gh_cmd(repo):
+    return f"git clone https://github.com/{USER}/{repo}.git"
+
+def clone_rows(repo):
+    out = []
+    for tag, cmd in (("mirror", clone_cmd(repo)), ("github", gh_cmd(repo))):
+        out.append(f'<div class="clone-row"><span class="clone-label">{tag}</span>'
+                   f'<code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div>')
+    return "".join(out)
+
 def copy_btn(text, label="Copy"):
     return (f'<button type="button" class="copy" data-copy="{H.escape(text, quote=True)}" '
             f'aria-label="Copy clone command">{ICON_COPY}{ICON_OK}<span>{label}</span></button>')
@@ -128,10 +138,9 @@ FILE_SEARCH = (
 def process_repo_page(doc, repo, rel, top_level=False):
     doc = re.sub(r'<body>\s*<table[^>]*>', f'<body id="top" data-repo="{H.escape(repo)}"><table id="header">', doc, 1)
     doc = pill_nav(doc, os.path.basename(rel))
-    bar = (f'<div class="clone-bar"><span class="clone-label">clone</span>'
-           f'<code>{H.escape(clone_cmd(repo))}</code>{copy_btn(clone_cmd(repo))}'
-           f'<a class="gh" href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">GitHub {ICON_GH}</a></div>')
-    bar += f'<p class="sync-note">Mirror {sync_time("synced")} · rebuilt hourly from GitHub</p>'
+    bar = f'<div class="clone-bar">{clone_rows(repo)}</div>'
+    bar += (f'<p class="sync-note">Mirror {sync_time("synced")} · rebuilt hourly · '
+            f'<a href="https://github.com/{USER}/{repo}" target="_blank" rel="noopener">Open on GitHub {ICON_GH}</a></p>')
     # File search only on the repo's Files page, not on file/commit/log pages
     if top_level and os.path.basename(rel) == "files.html":
         bar += FILE_SEARCH
@@ -160,12 +169,12 @@ def build_index(doc):
         desc, last = tds[1].strip(), tds[-1].strip()
         if desc in ("", "No description provided."):
             desc = '<span class="muted">No description</span>'
-        cmd = clone_cmd(re.sub(r'<.*?>', '', name))
+        rname = re.sub(r'<.*?>', '', name)
         items.append(
             f'<li class="repo" data-name="{H.escape(re.sub("<.*?>","",name).lower())}" data-date="{H.escape(last)}">'
             f'<div class="repo-top"><a class="repo-name" href="{href}">{name}</a><time>{last}</time></div>'
             f'<p class="repo-desc">{desc}</p>'
-            f'<div class="clone-bar compact"><code>{H.escape(cmd)}</code>{copy_btn(cmd, "")}</div></li>')
+            f'<div class="clone-bar compact">{clone_rows(rname)}</div></li>')
     grid = f'<ul id="index" class="repo-grid">{"".join(items)}</ul><p id="no-results" hidden>No repositories match your search.</p>'
     hero = (f'<header id="hero"><a href="/" class="hero-logo"><img src="/logo.png" alt="" width="44" height="44"></a>'
             f'<div><h1>Repositories</h1><p class="desc">{len(items)} public repos by <a href="https://github.com/{USER}" target="_blank" rel="noopener">@{USER}</a> · mirrored hourly · {sync_time("synced")}</p></div>' + SHARE_BTN.replace('class="share"', 'class="share hero-share"') + THEME_BTN + '</header>'

@@ -75,74 +75,7 @@ print(json.dumps(out,separators=(",",":")))' > "$WEB_TARGET/search.json" 2>/dev/
 # 4. Make files.html default landing page
 [ -f "$WEB_TARGET/files.html" ] && cp -f "$WEB_TARGET/files.html" "$WEB_TARGET/index.html"
 
-# 5. Insert Activity Link into Stagit's Navbar
-(
-    cd "$WEB_TARGET"
-    find . -name "*.html" -print0 | xargs -0 sed -i -E \
-        's#(<a href="([^"]*)refs\.html">Refs</a>)#\1 | <a href="\2activity.html">Activity</a>#' 2>/dev/null || true
-)
-
-# 6. Generate SVG stats graph & activity.html
-generate_stats_svg() {
-    local git_dir="$1"
-    local counts
-    counts=$(git -C "$git_dir" log --format=%cd --date=format:%G-W%V 2>/dev/null | sort | uniq -c | tail -20)
-    [ -z "$counts" ] && { echo ""; return; }
-
-    local max=1
-    while read -r c _; do
-        [ -z "$c" ] && continue
-        if [ "$c" -gt "$max" ]; then max=$c; fi
-    done <<< "$counts"
-
-    local bar_count
-    bar_count=$(echo "$counts" | wc -l)
-    local svg_width=$(( bar_count * 20 ))
-    [ "$svg_width" -lt 40 ] && svg_width=40
-
-    local svg="<svg viewBox=\"0 0 ${svg_width} 60\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" class=\"stats-svg\" aria-label=\"commit activity, last ${bar_count} weeks\">"
-    local x=0
-    while read -r c w; do
-        [ -z "$c" ] && continue
-        local h=$(( c * 52 / max )); [ "$h" -lt 2 ] && h=2
-        local y=$(( 60 - h ))
-        svg="$svg<rect x=\"$x\" y=\"$y\" width=\"16\" height=\"$h\"><title>${w}:${c} commit(s)</title></rect>"
-        x=$(( x + 20 ))
-    done <<< "$counts"
-    svg="$svg</svg>"
-    echo "$svg"
-}
-
-LAST_COMMIT_HASH=$(git -C "$TARGET" log -1 --format="%H" 2>/dev/null || echo "unknown")
-LAST_COMMIT_SHORT=$(git -C "$TARGET" log -1 --format="%h" 2>/dev/null || echo "unknown")
-LAST_COMMIT_TIME=$(git -C "$TARGET" log -1 --format="%cd" --date=iso-strict 2>/dev/null || echo "unknown")
-REPO_SIZE=$(du -sh "$TARGET" 2>/dev/null | cut -f1)
-[ -z "$REPO_SIZE" ] && REPO_SIZE="unknown"
-ACTIVITY_SVG=$(generate_stats_svg "$TARGET")
-
-BACK_ARROW_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-move-left-icon lucide-move-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>'
-NAV_LINKS="<a href=\"files.html\" class=\"nav-arrow\">${BACK_ARROW_SVG}</a>"
-
-{
-    echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-    echo "<title>$REPO - Activity</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
-    echo "<h1>$REPO</h1><p class=\"desc\">$DESC</p>"
-    echo "<p>$NAV_LINKS</p><hr>"
-    echo "<div id=\"activity-meta\">"
-    echo "<h2>Activity record of '<u>$USERNAME/$REPO</u>'</h2><br>"
-    echo "<p>GitHub: <a href=\"https://github.com/$USERNAME/$REPO\" target=\"_blank\">github.com/$USERNAME/$REPO</a></p>"
-    echo "<p>Clone: <code>git clone ${SITE_BASE_URL:-https://github.com/$USERNAME}/$REPO</code></p>"
-    echo "<p>Clone from GitHub: <code>git clone https://github.com/$USERNAME/$REPO.git</code></p><br>"
-    echo "<p>Last commit: <a href=\"https://github.com/$USERNAME/$REPO/commit/$LAST_COMMIT_HASH\" target=\"_blank\">$LAST_COMMIT_SHORT</a> ($LAST_COMMIT_TIME)</p>"
-    echo "<p>Repository size (approx): $REPO_SIZE</p>"
-    echo "</div>"
-    if [ -n "$ACTIVITY_SVG" ]; then
-        echo "<div id=\"activity-graph\"><span class=\"stats-label\">commit activity</span><div class=\"activity-graph-wrap\">$ACTIVITY_SVG</div></div>"
-    fi
-    echo "</body></html>"
-} > "$WEB_TARGET/activity.html"
-
-# 7. Inject recursive folder tree script into files.html
+# 5. Inject recursive folder tree script into files.html
 if [ -f "$WEB_TARGET/files.html" ]; then
     cat <<'JSEOF' >> "$WEB_TARGET/files.html"
 <script>
@@ -335,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 JSEOF
 fi
 
-# 8. Python Breadcrumbs on file/**/*.html
+# 6. Python Breadcrumbs on file/**/*.html
 python3 - "$WEB_TARGET" <<'PYEOF'
 import os, re, sys
 
