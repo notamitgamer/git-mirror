@@ -117,6 +117,7 @@ def build_repo_header(inner, current):
     h1 = re.search(r'<h1>(.*?)</h1>', inner, re.S)
     desc = re.search(r'<span class="desc">(.*?)</span>', inner, re.S)
     links = re.findall(r'<a href="([^"]+)">(.*?)</a>', inner, re.S)
+    links = [(h, l) for h, l in links if '<img' not in l]
     tabs = []
     for href, label in links:
         cur = href == current or (current == "index.html" and href == "files.html")
