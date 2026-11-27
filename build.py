@@ -367,9 +367,8 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{full_title}</title>
 <meta name="description" content="{desc}">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1a1c1f" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#181825">
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <link rel="canonical" href="{esc(base + q(path))}">
 <link rel="icon" href="/favicon.png" type="image/png">

@@ -34,7 +34,7 @@ The workflow (`.github/workflows/main.yml`) runs on every push, hourly, on manua
 
 ## Front end
 
-* Light and dark themes follow the system. System fonts only, no frameworks, about 20 KB of CSS and 12 KB of JS.
+* Catppuccin Mocha theme with the peach accent. System fonts only, no frameworks, about 20 KB of CSS and 12 KB of JS.
 * **Instant navigation.** Internal links are prefetched aggressively (everything near the viewport, the rest of
   the page shortly after, and on hover or touch), and clicks swap the page content in memory, so navigation
   feels like a single-page app while staying plain static HTML. Back/forward, scroll restoration, open in new
