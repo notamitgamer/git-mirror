@@ -4,6 +4,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const ORIGIN = location.origin;
+  const BASE = document.body.dataset.base || '';   // '' at a domain root, '/repo' on project Pages
 
   /* ───── page cache + prefetch ───── */
   const cache = new Map();                 // key -> Promise<string|null>
@@ -38,7 +39,7 @@
     if (!a || !a.href || a.target || a.hasAttribute('download') || a.hasAttribute('data-nopjax')) return null;
     let u;
     try { u = new URL(a.href, location.href); } catch { return null; }
-    if (u.origin !== ORIGIN || !u.pathname.endsWith('/')) return null;
+    if (u.origin !== ORIGIN || !u.pathname.startsWith(BASE + '/') || !u.pathname.endsWith('/')) return null;
     if (u.pathname === location.pathname && u.search === location.search) return null;   // same page (#hash)
     return u;
   }
@@ -177,7 +178,7 @@
   let index = null, loading = null, sel = -1, hits = [];
   function loadIndex() {
     if (index) return Promise.resolve(index);
-    return loading || (loading = fetch('/search.json').then((r) => r.json()).then((d) => (index = d)).catch(() => (index = { r: [] })));
+    return loading || (loading = fetch(BASE + '/search.json').then((r) => r.json()).then((d) => (index = d)).catch(() => (index = { r: [] })));
   }
   function closeResults() { box.hidden = true; sel = -1; }
   function openSearch(prefill) { input.focus(); if (prefill != null) { input.value = prefill; search(); } }
@@ -204,9 +205,9 @@
     files.sort((a, b) => a.s - b.s || a.f.length - b.f.length);
     hits = [];
     let h = '';
-    if (repos.length) { h += '<div class="rh">Repositories</div>'; for (const x of repos) { hits.push('/' + encodeURIComponent(x.r.n) + '/'); h += `<a href="${hits[hits.length - 1]}"><b>${esc(x.r.n)}</b><small>${esc(x.r.d)}</small></a>`; } }
+    if (repos.length) { h += '<div class="rh">Repositories</div>'; for (const x of repos) { hits.push(BASE + '/' + encodeURIComponent(x.r.n) + '/'); h += `<a href="${hits[hits.length - 1]}"><b>${esc(x.r.n)}</b><small>${esc(x.r.d)}</small></a>`; } }
     const fs = files.slice(0, 30);
-    if (fs.length) { h += '<div class="rh">Files</div>'; for (const x of fs) { const u = '/' + encodeURIComponent(x.r) + '/blob/' + enc(x.f) + '/'; hits.push(u); h += `<a href="${u}"><b>${esc(x.f)}</b><small>${esc(x.r)}</small></a>`; } }
+    if (fs.length) { h += '<div class="rh">Files</div>'; for (const x of fs) { const u = BASE + '/' + encodeURIComponent(x.r) + '/blob/' + enc(x.f) + '/'; hits.push(u); h += `<a href="${u}"><b>${esc(x.f)}</b><small>${esc(x.r)}</small></a>`; } }
     box.innerHTML = h || '<div class="none">No matches.</div>';
     box.hidden = false; sel = -1;
   }

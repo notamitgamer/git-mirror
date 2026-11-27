@@ -56,15 +56,18 @@ The workflow (`.github/workflows/main.yml`) runs on every push, hourly, on manua
 
 ## Fork and deploy your own
 
-1. **Fork** this repository.
-2. **Enable Actions.** Forks start with workflows disabled: open the *Actions* tab and enable them.
-3. **Enable Pages.** *Settings → Pages → Build and deployment → Source: GitHub Actions*. For a custom domain, set it
-   there too; the build picks it up automatically (or set `MIRROR_BASE_URL`).
-4. **Run it once.** *Actions → Build & Deploy Git Mirror → Run workflow*. After that it rebuilds on every push and
-   hourly. The account mirrored is the owner of the fork (override with `MIRROR_USER`).
+No files to edit.
 
-To hide repositories, set `MIRROR_EXCLUDE` (comma separated) in the workflow's `env`, for example
-`MIRROR_EXCLUDE: "secret-project,old-fork"`. Forks of other people's repositories are mirrored like any other.
+1. **Fork** this repository.
+2. **Turn on Pages:** *Settings → Pages → Source: GitHub Actions*.
+3. **Turn on workflows:** open the *Actions* tab and enable them (GitHub keeps them off on every fork).
+4. **Start the first build:** *Actions → Build & Deploy Git Mirror → Enable workflow* if asked, then *Run workflow*.
+
+The site appears at `https://<you>.github.io/git-mirror/` (or at the root for a `<you>.github.io` repository or a
+custom domain) and is then rebuilt on every push and hourly. It mirrors the fork owner's public repositories.
+
+Optional repository variables (*Settings → Secrets and variables → Actions → Variables*): `MIRROR_USER`,
+`MIRROR_EXCLUDE` (comma separated) and `MIRROR_BASE_URL`.
 
 ## Run it locally
 
@@ -74,8 +77,8 @@ GH_TOKEN=<any token>   python build.py        # token is optional but avoids the
 python -m http.server -d site 8000
 ```
 
-Configuration is by environment variable: `MIRROR_USER`, `MIRROR_EXCLUDE` (default `git-mirror,register,osma`),
-`MIRROR_DEPTH` (default `200`) and `MIRROR_BASE_URL` (defaults to the Pages custom domain).
+Configuration is by environment variable: `MIRROR_USER`, `MIRROR_EXCLUDE` (this repository is always skipped),
+`MIRROR_DEPTH` (default `200`) and `MIRROR_BASE_URL` (defaults to the Pages URL).
 
 ## Limits
 
@@ -85,7 +88,7 @@ Configuration is by environment variable: `MIRROR_USER`, `MIRROR_EXCLUDE` (defau
 * "Last commit" columns are computed from the cloned history, so files untouched for more than 200 commits
   show no commit info.
 
-`cdn-sync.yml` is unchanged and still pushes this repository to the CDN.
+`cdn-sync.yml` pushes the original repository to its CDN and is skipped on forks.
 
 ## License
 

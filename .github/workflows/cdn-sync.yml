@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   sync:
+    if: github.repository == 'notamitgamer/git-mirror'   # forks skip this
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

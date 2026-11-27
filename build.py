@@ -6,9 +6,9 @@ Every page is pre-rendered HTML; nothing is rendered at request time.
 
 Environment (all optional):
   MIRROR_USER      GitHub account to mirror      (default: repo owner or notamitgamer)
-  MIRROR_EXCLUDE   comma list of repos to skip   (default: git-mirror,register,osma)
+  MIRROR_EXCLUDE   comma list of repos to skip   (this repo is always skipped)
   MIRROR_DEPTH     history depth to clone        (default: 200)
-  MIRROR_BASE_URL  public site URL               (default: Pages cname / CNAME file / github.io)
+  MIRROR_BASE_URL  public site URL               (default: Pages URL / CNAME file / github.io)
   GH_TOKEN         token for API rate limits     (default: unauthenticated)
 """
 import hashlib
@@ -33,7 +33,7 @@ CACHE = os.path.join(ROOT, ".cache")
 
 USER = os.environ.get("MIRROR_USER") or os.environ.get("GITHUB_REPOSITORY_OWNER") or "notamitgamer"
 SELF_REPO = os.environ.get("GITHUB_REPOSITORY") or f"{USER}/git-mirror"
-EXCLUDE = {x.strip() for x in os.environ.get("MIRROR_EXCLUDE", "git-mirror,register,osma").split(",") if x.strip()}
+EXCLUDE = {x.strip() for x in os.environ.get("MIRROR_EXCLUDE", "").split(",") if x.strip()} | {SELF_REPO.split("/")[-1]}
 DEPTH = int(os.environ.get("MIRROR_DEPTH", "200"))
 COMMIT_PAGES = 50          # commit pages (with diffs) rendered per repo
 MAX_BLOB = 300_000         # bigger text files are not rendered
@@ -117,7 +117,21 @@ class CatFile:
             self.p.kill()
 
 
+_TAG = re.compile(r"<[a-zA-Z][^<>]*>")
+_ROOTED = re.compile(r'(\s(?:href|src)=")/(?!/)')
+
+
+def prefix_links(page, prefix):
+    """Move root-relative links under the Pages sub-path. Only touches real tags: shown code is escaped."""
+    if not prefix:
+        return page
+    page = _TAG.sub(lambda m: _ROOTED.sub(lambda a: a.group(1) + prefix + "/", m.group(0)), page)
+    return page.replace('"href_matches": "/*"', f'"href_matches": "{prefix}/*"')
+
+
 def write(path, content):
+    if path.endswith(".html"):
+        content = prefix_links(content, CFG.get("prefix", ""))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
@@ -386,7 +400,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <script src="/app.js?v={v}" defer></script>
 <script type="speculationrules">{SPEC_RULES}</script>
 </head>
-<body>
+<body data-base="{CFG.get("prefix", "")}">
 <header class="nav"><div class="wrap nav-in">
 <a class="brand" href="/"><img src="/icon.svg" width="26" height="26" alt=""><span>{esc(USER)}<em>/git</em></span></a>
 <form class="search" role="search" onsubmit="return false"><span class="si">{icon('search')}</span><input id="q" type="search" placeholder="Search repos and files…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search repositories and files"><kbd>/</kbd><div id="results" hidden></div></form>
@@ -934,12 +948,16 @@ def detect_base():
         pg = api(f"/repos/{SELF_REPO}/pages")
         if pg.get("cname"):
             return "https://" + pg["cname"]
+        if pg.get("html_url"):
+            return pg["html_url"].rstrip("/")
     except Exception:
         pass
     cname = os.path.join(ROOT, "CNAME")
     if os.path.exists(cname):
         return "https://" + open(cname).read().strip()
-    return f"https://{USER}.github.io"
+    owner, repo = SELF_REPO.split("/", 1)
+    host = f"{owner.lower()}.github.io"
+    return f"https://{host}" if repo.lower() == host else f"https://{host}/{repo}"
 
 
 def home_page(repos, profile, built_at):
@@ -1001,7 +1019,8 @@ def main():
     write(os.path.join(SITE, ".nojekyll"), "")
 
     base = detect_base()
-    CFG.update({"base": base, "v": v, "src": src})
+    prefix = urllib.parse.urlparse(base).path.rstrip("/")
+    CFG.update({"base": base, "v": v, "src": src, "prefix": prefix})
     log(f"user={USER} base={base} depth={DEPTH} assets={v}")
 
     repos, page = [], 1
