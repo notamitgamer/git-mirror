@@ -228,6 +228,18 @@
     else if (e.key === 't') { const g = $('[data-goto]'); if (g) { e.preventDefault(); openSearch(g.dataset.goto); } }
   });
 
+  /* ───── installable app (PWA) ───── */
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register(BASE + '/sw.js').catch(() => {});
+  const install = $('#install');
+  let prompt_ = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); prompt_ = e; install.hidden = false; });
+  addEventListener('appinstalled', () => { prompt_ = null; install.hidden = true; });
+  install.addEventListener('click', async () => {
+    if (!prompt_) return;
+    const p = prompt_; prompt_ = null; install.hidden = true;
+    await p.prompt();
+  });
+
   /* ───── init per page ───── */
   function init() {
     window.__cur = location.pathname + location.search;

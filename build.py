@@ -405,6 +405,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <a class="brand" href="/"><img src="/icon.svg" width="26" height="26" alt=""><span>{esc(USER)}<em>/git</em></span></a>
 <form class="search" role="search" onsubmit="return false"><span class="si">{icon('search')}</span><input id="q" type="search" placeholder="Search repos and files…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search repositories and files"><kbd>/</kbd><div id="results" hidden></div></form>
 <a class="nbtn" href="https://github.com/{esc(USER)}" rel="noopener" title="GitHub profile" aria-label="GitHub profile">{icon('github')}<span>GitHub</span></a>
+<button class="nbtn" id="install" type="button" title="Install app" aria-label="Install app" hidden>{icon('download')}<span>Install</span></button>
 <button class="nbtn" id="share" type="button" title="Share" aria-label="Share">{icon('share')}</button>
 </div></header>
 <main id="main" class="{esc(cls)}">

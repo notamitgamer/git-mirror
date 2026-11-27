@@ -63,6 +63,7 @@ html.loading::before { content: ""; position: fixed; z-index: 100; inset: 0 auto
 .nbtn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: var(--r); border: 1px solid transparent; background: none; color: var(--tx); cursor: pointer; flex: none; }
 .nbtn:hover { background: var(--bg3); text-decoration: none; }
 .nbtn .i { width: 18px; height: 18px; }
+.nbtn[hidden] { display: none; }
 
 /* ── buttons & badges ── */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--bd); border-radius: var(--r); background: var(--bg2); color: var(--tx); cursor: pointer; white-space: nowrap; max-width: 100%; }

@@ -39,6 +39,8 @@ The workflow (`.github/workflows/main.yml`) runs on every push, hourly, on manua
   the page shortly after, and on hover or touch), and clicks swap the page content in memory, so navigation
   feels like a single-page app while staying plain static HTML. Back/forward, scroll restoration, open in new
   tab and no-JS browsing all work. Chromium also gets `speculationrules` prefetch and cross-fade transitions.
+* **Installable (PWA).** An Install button appears where the browser supports it (on iPhone and iPad use
+  *Share → Add to Home Screen*). Pages you have loaded stay readable offline.
 * Mobile first: tables, code and diffs scroll inside their own boxes, so the page itself never scrolls sideways.
 * Search (`/`) covers repo names, descriptions and file paths. `t` jumps to "Go to file" on a repo page.
   `#L10` and `#L10-L20` highlight lines.
