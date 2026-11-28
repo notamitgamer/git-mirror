@@ -217,6 +217,8 @@ _I = {
 def icon(name, cls=""):
     vb, body = _I[name]
     c = "i f" if name == "github" else "i"
+    if name == "star":
+        c += " star"
     if cls:
         c += " " + cls
     return f'<svg class="{c}" viewBox="{vb}" width="16" height="16" aria-hidden="true">{body}</svg>'
@@ -495,7 +497,7 @@ def load_themes():
 
 def theme_css(themes):
     def block(selector, t):
-        return selector + "{color-scheme:" + t["scheme"] + ";" + "".join(f"--{k}:{v};" for k, v in t["colors"].items()) + "}"
+        return selector + "{color-scheme:" + t["scheme"] + ";" + "".join(f"--{k}:{v};" for k, v in {"link": t["colors"]["ac"], "star": "currentColor", "chip": "inherit", **t["colors"]}.items()) + "}"
     by = {t["id"]: t for t in themes}
     auto = ""
     if "rosepine" in by and "rosepine-dawn" in by:
