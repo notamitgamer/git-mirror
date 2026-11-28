@@ -40,7 +40,7 @@ and an `Authorization: Bearer <token>` header (fine-grained token, this reposito
 
 ## Front end
 
-* Themes: Rosé Pine (default, plus Moon and Dawn), Catppuccin (Mocha, Macchiato, Frappé, Latte), Light, Tokyo Night, Nord, two colour-blind
+* Themes: Noir Pink (default), GitHub Dark and Light, Rosé Pine (with Moon and Dawn), Catppuccin (Mocha, Macchiato, Frappé, Latte), Tokyo Night, Nord, two colour-blind
   friendly themes and High contrast. The picker is in the top bar and remembers your choice. Add a theme by adding
   an entry to `assets/themes.json`; set the default with the `MIRROR_THEME` variable. System fonts only, no frameworks, about 20 KB of CSS and 12 KB of JS.
 * **Instant navigation.** Internal links are prefetched aggressively (everything near the viewport, the rest of
