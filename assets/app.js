@@ -260,10 +260,39 @@
   });
   paintTheme();
 
+  /* ───── copy buttons + line wrap ───── */
+  function copyButtons() {
+    $$('.md pre').forEach((pre) => {
+      if (pre.parentNode.classList.contains('prewrap')) return;
+      const box = document.createElement('div'), b = document.createElement('button');
+      box.className = 'prewrap'; b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copy';
+      pre.replaceWith(box); box.append(pre, b);
+      b.onclick = async () => { b.textContent = (await copy(pre.textContent)) ? 'Copied' : 'Failed'; setTimeout(() => (b.textContent = 'Copy'), 1500); };
+    });
+  }
+  let wrap = false;
+  try { wrap = localStorage.getItem('wrap') === '1'; } catch {}
+  function applyWrap() {
+    const box = $('.codebox'), btn = $('[data-wrap]');
+    if (!box || !btn) return;
+    btn.setAttribute('aria-pressed', wrap);
+    box.classList.toggle('wrapped', wrap);
+    const nums = $$('.ln a', box), lines = $$('.code code > span[id]', box);
+    // line numbers live in their own column, so match each one to its wrapped height
+    const heights = lines.map((l) => (wrap ? Math.max(1, new Set(Array.from(l.getClientRects(), (r) => Math.round(r.top))).size) * 20 + 'px' : ''));
+    nums.forEach((n, i) => (n.style.height = heights[i]));
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-wrap]')) return;
+    wrap = !wrap; try { localStorage.setItem('wrap', wrap ? '1' : '0'); } catch {}
+    applyWrap();
+  });
+  addEventListener('resize', () => wrap && applyWrap());
+
   /* ───── init per page ───── */
   function init() {
     window.__cur = location.pathname + location.search;
-    times(document); homeList(); applyHash(); observeLinks(); onScroll();
+    times(document); homeList(); applyHash(); observeLinks(); onScroll(); copyButtons(); applyWrap();
   }
   history.replaceState({ y: 0 }, '');
   init();

@@ -229,6 +229,14 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .assets { border-top: 1px solid var(--bd); }
 .card .assets .rr { flex-wrap: nowrap; } .card .assets .rn2 { flex: 1; max-width: none; } .card .assets .rr .fm { flex: none; order: 0; display: block; }
 
+.md pre { position: relative; }
+.copybtn { position: absolute; top: 6px; right: 6px; font-size: 12px; border: 1px solid var(--bd); border-radius: var(--r); background: var(--bg3); color: var(--tx); padding: 2px 8px; cursor: pointer; opacity: .85; }
+.prewrap { position: relative; }
+.toc { border: 1px solid var(--bd); border-radius: var(--r); padding: 8px 12px; margin-bottom: 1em; background: var(--bg2); }
+.toc summary { cursor: pointer; font-weight: 600; } .md .toc ul { margin: 8px 0 0; list-style: none; padding: 0; }
+.toc .l2 { padding-left: 14px; } .toc .l3 { padding-left: 28px; }
+.codebox.wrapped .code { flex: 1 1 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-wrap][aria-pressed="true"] { background: var(--acbg); color: var(--ac); }
 /* readme / markdown */
 .readme { margin-top: 16px; }
 .readme > header { display: flex; align-items: center; gap: 8px; }

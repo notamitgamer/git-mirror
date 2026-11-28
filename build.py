@@ -25,6 +25,8 @@ import time
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
+
+import emoji
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -350,7 +352,27 @@ def alerts(page):
     return _ALERT.sub(box, page).replace("<p></p>", "")
 
 
-def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=None):
+def enrich(page, repo, numbers=None):
+    """Emoji shortcodes everywhere; with `numbers`, also link #12 and @user. Code and existing links are left alone."""
+    parts, skip = re.split(r"(<[^>]+>)", page), 0
+    for i, part in enumerate(parts):
+        if i % 2:
+            m = re.match(r"<(/?)(a|code|pre)\b", part)
+            if m:
+                skip += -1 if m.group(1) else 1
+            continue
+        if skip or not part:
+            continue
+        part = emoji.emojize(part, language="alias")
+        if numbers is not None:
+            part = re.sub(r"(?<![\w&/#])#(\d{1,7})\b", lambda m: f'<a href="' + (f'/{q(repo)}/{numbers[int(m[1])]}/{m[1]}/' if int(m[1]) in numbers
+                          else f'https://github.com/{USER}/{q(repo)}/issues/{m[1]}') + f'">#{m[1]}</a>', part)
+            part = re.sub(r"(?<![\w/@.`])@([A-Za-z0-9][A-Za-z0-9-]{0,38})(?![\w/-])", r'<a href="https://github.com/\1">@\1</a>', part)
+        parts[i] = part
+    return "".join(parts)
+
+
+def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=None, numbers=None, toc=False):
     root = root or f"/{q(repo)}"
     out = markdown_engine().render(text)
     out = alerts(sanitize(out))
@@ -380,7 +402,7 @@ def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=No
     out = re.sub(r"<img\b(?![^>]*\bloading=)", '<img loading="lazy"', out)
     out = re.sub(r"<table\b", '<div class="tbl"><table', out)
     out = out.replace("</table>", "</table></div>")
-    seen = {}
+    seen, headings = {}, []
 
     def head(m):
         lvl, inner = m.group(1), m.group(2)
@@ -390,9 +412,15 @@ def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=No
         seen[slug] = n + 1
         if n:
             slug += f"-{n}"
+        headings.append((int(lvl), slug, re.sub(r"<[^>]+>", "", inner)))
         return f'<h{lvl} id="{esc(slug)}">{inner}<a class="anc" href="#{esc(slug)}" aria-hidden="true">#</a></h{lvl}>'
 
     out = re.sub(r"<h([1-6])>(.*?)</h\1>", head, out, flags=re.S)
+    out = enrich(out, repo, numbers)
+    items = [h for h in headings if h[0] <= 3]
+    if toc and len(items) >= 4:
+        links = "".join(f'<li class="l{lvl}"><a href="#{esc(slug)}">{emoji.emojize(text, language="alias")}</a></li>' for lvl, slug, text in items)
+        out = f'<details class="toc"><summary>Contents</summary><ul>{links}</ul></details>' + out
     return out
 
 
@@ -750,7 +778,7 @@ def releases_html(rels, name, branch, tree_files, tree_dirs):
         if r["zip"]:
             for ext, label in ((".zip", "Source code (zip)"), (".tar.gz", "Source code (tar.gz)")):
                 rows.append(f'<div class="rr"><a class="rn2" href="{esc(r["zip"] + ext)}" rel="noopener">{icon("code")}<span>{label}</span></a><span class="fm"></span></div>')
-        notes = f'<div class="md">{render_markdown(r["body"], name, branch, "", tree_files, tree_dirs)}</div>' if r["body"].strip() else ""
+        notes = f'<div class="md">{render_markdown(r["body"], name, branch, "", tree_files, tree_dirs, numbers={})}</div>' if r["body"].strip() else ""
         out.append(f'<section class="release card" id="rel-{esc(r["tag"])}"><header>{icon("tag")}<b>{esc(r["name"])}</b>{badge}<span class="mu">{esc(r["tag"])} {when}</span>'
                    f'<a class="btn sm" href="{esc(r["url"])}" rel="noopener">GitHub{icon("ext", "xs")}</a></header>{notes}<div class="assets">{"".join(rows)}</div></section>')
     return "".join(out) or '<div class="ftable"><div class="empty">No releases yet.</div></div>'
@@ -968,9 +996,11 @@ def render_discussions(meta, rh, branch, tree_files, tree_dirs):
     for c in d.get("comments", []):
         threads.setdefault(c["n"], []).append(c)
 
+    numbers = {i["n"]: kind for kind in ("issues", "pulls") for i in d.get(kind, [])}
+
     def box(c, verb):
         img = f'<img src="{esc(c["user"]["avatar"])}&s=48" alt="" width="24" height="24" loading="lazy">' if c["user"]["avatar"] else ""
-        body = render_markdown(c["body"], name, branch, "", tree_files, tree_dirs) if c["body"].strip() else '<p class="mu">No description provided.</p>'
+        body = render_markdown(c["body"], name, branch, "", tree_files, tree_dirs, numbers=numbers) if c["body"].strip() else '<p class="mu">No description provided.</p>'
         return f'<section class="comment card"><header>{img}<b>{esc(c["user"]["login"])}</b><span class="mu">{esc(verb)} {when(c["date"])}</span></header><article class="md">{body}</article></section>'
 
     for kind, title, gh_kind in (("issues", "Issues", "issues"), ("pulls", "Pull requests", "pull")):
@@ -1129,7 +1159,7 @@ def render_repo(meta, bare, out_dir):
                     data = cat.read(e["sha"]).decode("utf-8", "replace")
                     readme_name = e["name"]
                     if e["name"].lower().endswith((".md", ".markdown", ".mdx")):
-                        readme_html = render_markdown(data, name, branch, "", tree_files, tree_dirs, root)
+                        readme_html = render_markdown(data, name, branch, "", tree_files, tree_dirs, root, toc=True)
                     else:
                         readme_html = f"<pre>{esc(data)}</pre>"
                     break
@@ -1213,7 +1243,7 @@ def render_repo(meta, bare, out_dir):
                 c = last.get(path)
                 cbar = (f'<div class="bcommit"><a href="{commit_href(c["sha"])}">{esc(c["subject"])}</a><span>{timetag(c["ts"])}</span></div>' if c else "")
                 body = (f'<div class="blob card{extra_cls}"><header class="bh"><span class="bn">{icon("file")}<b>{esc(fname)}</b><em>{meta_txt}</em></span>'
-                        f'{seg}<span class="acts">{actions}</span></header>{cbar}{view}</div>')
+                        f'{seg}<span class="acts">{'<button class="btn sm" type="button" data-wrap aria-pressed="false">Wrap</button>' if "codebox" in view else ""}{actions}</span></header>{cbar}{view}</div>')
                 main = f'{rh("code")}<div class="wrap"><div class="col">{toolbar()}{crumbs(name, path.split("/"), True, root=root)}{body}</div></div>'
                 write(page_file(f"{raw_root}/blob/{path}/"), layout(f"{path} · {USER}/{name}", main, path=f"{raw_root}/blob/{path}/", cls="p-blob", noindex=not is_default))
         finally:
