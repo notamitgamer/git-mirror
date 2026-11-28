@@ -96,6 +96,7 @@ Configuration is by environment variable: `MIRROR_USER`, `MIRROR_EXCLUDE` (this 
   to GitHub. File search covers the default branch.
 * The home page shows public profile data, the contribution graph, recent commits found in the mirrored
   repositories and the profile README. Each repository lists its deployments and contributors.
+* GitHub alerts (`[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) render as coloured boxes.
 * Issues and pull requests (newest 300 of each by update, with comments and reviews) are shown as they were at build
   time. PR file diffs, replying, editing and anything else live happen on GitHub.
 * "Last commit" columns are computed from the cloned history, so files untouched for more than 200 commits

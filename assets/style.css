@@ -242,6 +242,11 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .md li + li { margin-top: .25em; }
 .md img { max-width: 100%; height: auto; }
 .md blockquote { border-left: 4px solid var(--bd); padding: 0 1em; color: var(--mu); }
+.md blockquote.alert { color: var(--tx); border-left-color: var(--al); }
+.md .alert-title { color: var(--al); font-weight: 600; margin-bottom: .4em; }
+.md .alert > :last-child { margin-bottom: 0; }
+.alert.note { --al: #89b4fa; } .alert.tip { --al: #a6e3a1; } .alert.important { --al: #cba6f7; }
+.alert.warning { --al: #f9e2af; } .alert.caution { --al: #f38ba8; }
 .md hr { border: 0; border-top: 1px solid var(--bd); margin: 1.4em 0; }
 .md code { background: var(--bg3); border-radius: 4px; padding: .15em .4em; font-size: 85%; overflow-wrap: anywhere; }
 .md pre { background: var(--codebg); border: 1px solid var(--bd); border-radius: var(--r); padding: 12px 14px; overflow-x: auto; max-width: 100%; }

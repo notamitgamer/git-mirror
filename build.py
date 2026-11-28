@@ -338,10 +338,21 @@ def sanitize(fragment):
     return "".join(p.out) + "".join(f"</{t}>" for t in reversed(p.open))
 
 
+_ALERT = re.compile(r"<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:<br\s*/?>)?(?=\n|</p>)\n?", re.I)
+
+
+def alerts(page):
+    """GitHub alerts: a quote whose first line is [!TIP], [!WARNING], etc."""
+    def box(m):
+        kind = m.group(1).lower()
+        return f'<blockquote class="alert {kind}"><p class="alert-title">{kind.capitalize()}</p>\n<p>'
+    return _ALERT.sub(box, page).replace("<p></p>", "")
+
+
 def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=None):
     root = root or f"/{q(repo)}"
     out = markdown_engine().render(text)
-    out = sanitize(out)
+    out = alerts(sanitize(out))
 
     def fix(m):
         attr, val = m.group(1), m.group(2)
