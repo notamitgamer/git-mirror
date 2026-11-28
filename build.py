@@ -643,7 +643,7 @@ def releases_html(rels, name, branch, tree_files, tree_dirs):
             for ext, label in ((".zip", "Source code (zip)"), (".tar.gz", "Source code (tar.gz)")):
                 rows.append(f'<div class="rr"><a class="rn2" href="{esc(r["zip"] + ext)}" rel="noopener">{icon("code")}<span>{label}</span></a><span class="fm"></span></div>')
         notes = f'<div class="md">{render_markdown(r["body"], name, branch, "", tree_files, tree_dirs)}</div>' if r["body"].strip() else ""
-        out.append(f'<section class="release card"><header>{icon("tag")}<b>{esc(r["name"])}</b>{badge}<span class="mu">{esc(r["tag"])} {when}</span>'
+        out.append(f'<section class="release card" id="rel-{esc(r["tag"])}"><header>{icon("tag")}<b>{esc(r["name"])}</b>{badge}<span class="mu">{esc(r["tag"])} {when}</span>'
                    f'<a class="btn sm" href="{esc(r["url"])}" rel="noopener">GitHub{icon("ext", "xs")}</a></header>{notes}<div class="assets">{"".join(rows)}</div></section>')
     return "".join(out) or '<div class="ftable"><div class="empty">No releases yet.</div></div>'
 
@@ -661,11 +661,11 @@ def render_repo(meta, bare, out_dir):
     # ---- refs
     branches, tags = [], []
     for ln in git(bare, "for-each-ref", "--sort=-creatordate",
-                  "--format=%(refname)%1f%(objectname)%1f%(creatordate:unix)%1f%(contents:subject)", "refs/heads", "refs/tags").split("\n"):
+                  "--format=%(refname)%1f%(objectname)%1f%(creatordate:unix)%1f%(contents:subject)%1f%(*objectname)", "refs/heads", "refs/tags").split("\n"):
         if not ln.strip():
             continue
-        ref, sha, ts, subj = (ln.split("\x1f") + ["", "", ""])[:4]
-        item = {"name": ref.split("/", 2)[2], "sha": sha, "ts": int(ts or 0), "subject": subj}
+        ref, sha, ts, subj, peeled = (ln.split("\x1f") + ["", "", "", ""])[:5]
+        item = {"name": ref.split("/", 2)[2], "sha": peeled or sha, "ts": int(ts or 0), "subject": subj}
         (branches if ref.startswith("refs/heads/") else tags).append(item)
     branches.sort(key=lambda b: (b["name"] != branch, -b["ts"]))
 
@@ -920,13 +920,17 @@ def render_repo(meta, bare, out_dir):
         write(page_file(f"/{name}/commit/{sha[:10]}/"), layout(f"{d['subject']} · {USER}/{name}@{sha[:7]}", main, path=f"/{name}/commit/{sha[:10]}/", cls="p-commit"))
 
     # ---- branches & tags
+    released = {r["tag"] for r in releases}
+
     def ref_rows(items, kind):
         rows = []
         for r in items:
             link = f"{gh}/tree/{q(r['name'])}"
             isdef = kind == "b" and r["name"] == branch
             href = f"/{q(name)}/" if isdef else link
-            rows.append(f'<div class="rr"><a class="rn2" href="{href}"{"" if isdef else " rel=noopener"}>{icon("branch" if kind == "b" else "tag")}<span>{esc(r["name"])}</span></a>'
+            if kind == "t":   # stay on the mirror: the release if there is one, else the tagged commit
+                href = f"/{q(name)}/releases/#rel-{q(r['name'])}" if r["name"] in released else commit_href(r["sha"])
+            rows.append(f'<div class="rr"><a class="rn2" href="{href}"{"" if href.startswith("/") else " rel=noopener"}>{icon("branch" if kind == "b" else "tag")}<span>{esc(r["name"])}</span></a>'
                         f'{"<span class=badge>default</span>" if isdef else ""}'
                         f'<a class="fm" href="{commit_href(r["sha"])}">{esc(r["subject"])}</a><span class="ft">{timetag(r["ts"]) if r["ts"] else ""}</span></div>')
         return "".join(rows) or '<div class="empty">Nothing here yet.</div>'
