@@ -1214,8 +1214,9 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
     if extras.get("readme"):
         readme = (f'<section class="card"><h3>{esc(USER)} / README.md</h3><article class="md">'
                   f'{render_markdown(extras["readme"], USER, "HEAD", "", set(), set())}</article></section>')
-    main = f"""<div class="wrap home"><aside>{prof}</aside><div class="hmain">{readme}{calendar_html(extras.get("calendar"))}{activity_html(commits)}
-<div class="hbar"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
+    main = f"""<nav class="htabs" aria-label="Home"><div class="wrap tabs"><a class="tab" href="#main">{icon('repo')}<span>Overview</span></a><a class="tab" href="#repos">{icon('folder')}<span>Repositories</span><em>{len(repos)}</em></a></div></nav>
+<div class="wrap home"><aside>{prof}</aside><div class="hmain">{readme}{calendar_html(extras.get("calendar"))}{activity_html(commits)}
+<div class="hbar" id="repos"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
 <input id="rf" type="search" placeholder="Filter repositories…" aria-label="Filter repositories" autocomplete="off">
 <select id="rs" aria-label="Sort repositories"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>

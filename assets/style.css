@@ -106,6 +106,13 @@ html.loading::before { content: ""; position: fixed; z-index: 100; inset: 0 auto
 .rrow { display: flex; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--bd); }
 .rrow .av { width: 32px; height: 32px; border-radius: 6px; font-size: 15px; }
 .rbody { flex: 1; min-width: 0; }
+.r1 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rn { font-weight: 600; font-size: 15px; }
+.rbody p { margin: 4px 0; color: var(--mu); }
+.r3 { font-size: 12px; color: var(--mu); margin-top: 4px; }
+.htabs { position: sticky; top: calc(var(--nav) + env(safe-area-inset-top)); z-index: 30; background: var(--bg2); border-bottom: 1px solid var(--bd); }
+.htabs .tabs { margin-top: 0; margin-bottom: 0; }
+#repos { scroll-margin-top: 44px; }
 .rside { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
 .rside span { display: inline-flex; gap: 4px; align-items: center; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
