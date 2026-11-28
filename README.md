@@ -30,8 +30,13 @@ Live at **https://git.amit.is-a.dev**
    A repo that fails to sync keeps serving its last good copy, and the failure shows up as a workflow warning
    instead of silently disappearing.
 
-The workflow (`.github/workflows/main.yml`) runs on every push, hourly, on manual dispatch and on a
+The workflow (`.github/workflows/main.yml`) runs on every push, on an hourly schedule, on manual dispatch and on a
 `mirror-refresh` repository dispatch, then deploys `site/` to GitHub Pages.
+
+GitHub's schedule is best-effort and can be hours late. The live site above is therefore also triggered every
+30 minutes by an external scheduler ([cron-job.org](https://cron-job.org)), which sends a `POST` to
+`https://api.github.com/repos/<owner>/<repo>/actions/workflows/main.yml/dispatches` with the body `{"ref":"main"}`
+and an `Authorization: Bearer <token>` header (fine-grained token, this repository only, *Actions: Read and write*).
 
 ## Front end
 
@@ -67,10 +72,10 @@ No files to edit.
 4. **Start the first build:** *Actions → Build & Deploy Git Mirror → Enable workflow* if asked, then *Run workflow*.
 
 The site appears at `https://<you>.github.io/git-mirror/` (or at the root for a `<you>.github.io` repository or a
-custom domain) and is then rebuilt on every push and hourly. It mirrors the fork owner's public repositories.
+custom domain) and is then rebuilt on every push and on GitHub's schedule (see above for exact timing). It mirrors the fork owner's public repositories.
 
 Optional repository variables (*Settings → Secrets and variables → Actions → Variables*): `MIRROR_USER`,
-`MIRROR_EXCLUDE` (comma separated) and `MIRROR_BASE_URL`.
+`MIRROR_EXCLUDE` (comma separated), `MIRROR_BASE_URL` and `MIRROR_REBUILD_NOTE` (home page timing text).
 
 ## Run it locally
 

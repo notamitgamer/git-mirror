@@ -43,6 +43,9 @@ MAX_DIFF_TOTAL = 5000      # diff lines per commit before truncating
 MAX_FILES = 4000           # blob pages per repo
 TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
 
+# What the home page says about timing. Only claim an interval when something really triggers it.
+REBUILD_NOTE = os.environ.get("MIRROR_REBUILD_NOTE") or "rebuilt automatically"
+
 CFG = {}  # filled in main(), re-applied in workers
 
 
@@ -1047,7 +1050,7 @@ def home_page(repos, profile, built_at):
 <select id="rs" aria-label="Sort repositories"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>
 <p class="empty" id="rempty" hidden>No repositories match.</p>
-<p class="synced mu">Synced {timetag(built_at)} · rebuilt hourly</p></div>"""
+<p class="synced mu">Synced {timetag(built_at)} · {esc(REBUILD_NOTE)}</p></div>"""
     return layout(f"{USER} · git", main, path="/", cls="p-home")
 
 
