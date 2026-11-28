@@ -858,7 +858,13 @@ def fetch_home_extras():
         r = api(f"/repos/{USER}/{USER}/readme")
         return base64.b64decode(r["content"]).decode("utf-8", "replace")
 
-    return {"calendar": cached_json(d("calendar"), calendar, None) if TOKEN else None,
+    def pinned():
+        data = graphql("query($u:String!){user(login:$u){pinnedItems(first:6,types:REPOSITORY){nodes{... on Repository{name description url "
+                       "stargazerCount owner{login} primaryLanguage{name color}}}}}}", {"u": USER})
+        return data["user"]["pinnedItems"]["nodes"]
+
+    return {"pinned": cached_json(d("pinned"), pinned, []) if TOKEN else [],
+            "calendar": cached_json(d("calendar"), calendar, None) if TOKEN else None,
             "readme": cached_json(d("readme"), readme, ""),
             "social": cached_json(d("social"), lambda: api(f"/users/{USER}/social_accounts"), []),
             "orgs": cached_json(d("orgs"), lambda: api(f"/users/{USER}/orgs"), [])}
@@ -890,6 +896,19 @@ def calendar_html(cal):
             cells.append(f'<i class="l{levels.get(day["contributionLevel"], 0)}" style="grid-area:{day["weekday"] + 1}/{col}" title="{esc(tip)}"></i>')
     return (f'<section class="card"><h3>{cal["totalContributions"]} contributions in the last year</h3>'
             f'<div class="calwrap"><div class="cal">{"".join(cells)}</div></div></section>')
+
+
+def pinned_html(pins, mirrored):
+    cards = ""
+    for p in pins:
+        local = p["owner"]["login"].lower() == USER.lower() and p["name"] in mirrored
+        href = f'/{q(p["name"])}/' if local else p["url"]
+        lang = p.get("primaryLanguage")
+        dot = f'<span class="lg"><i style="background:{esc(lang.get("color") or "#8b949e")}"></i>{esc(lang["name"])}</span>' if lang else ""
+        title = p["name"] if p["owner"]["login"].lower() == USER.lower() else f'{p["owner"]["login"]}/{p["name"]}'
+        cards += (f'<div class="pin card"><a class="rn" href="{esc(href)}">{esc(title)}</a><p class="mu">{esc(p.get("description") or "")}</p>'
+                  f'<div class="pbits">{dot}<span>{icon("star")}{p.get("stargazerCount", 0)}</span></div></div>')
+    return f'<h2 class="sec">Pinned</h2><div class="pins">{cards}</div>' if cards else ""
 
 
 def activity_html(commits):
@@ -1007,11 +1026,14 @@ def render_discussions(meta, rh, branch, tree_files, tree_dirs):
         items = sorted(d.get(kind, []), key=lambda i: -i["n"])
         sections = ""
         for label, group in (("Open", [i for i in items if i["state"] == "open"]), ("Closed", [i for i in items if i["state"] != "open"])):
-            rows = "".join(f'<div class="rr"><a class="rn2" href="/{q(name)}/{kind}/{i["n"]}/"><span>{esc(i["title"])}</span></a>{state_badge(i)}{label_html(i["labels"])}'
+            rows = "".join(f'<div class="rr" data-title="{esc((i["title"] + " #" + str(i["n"])).lower())}" data-labels="{esc(chr(10).join(n for n, _ in i["labels"]))}"><a class="rn2" href="/{q(name)}/{kind}/{i["n"]}/"><span>{esc(i["title"])}</span></a>{state_badge(i)}{label_html(i["labels"])}'
                            f'<span class="fm">#{i["n"]} by {esc(i["user"]["login"])}</span><span class="ft">{when(i["date"])}</span></div>' for i in group)
             sections += f'<h2 class="sec">{label} <em>{len(group)}</em></h2><div class="ftable items">{rows or "<div class=empty>Nothing here.</div>"}</div>'
         gh_list = f"https://github.com/{USER}/{name}/{kind}"
-        main = f'{rh(kind)}<div class="wrap"><div class="col">{sections}<p class="more-link"><a href="{gh_list}" rel="noopener">{title} on GitHub{icon("ext", "xs")}</a></p></div></div>'
+        options = "".join(f'<option>{esc(n)}</option>' for n in sorted({n for i in items for n, _ in i["labels"]}))
+        bar = (f'<div class="hbar ifilter"><input id="if" type="search" placeholder="Search titles…" aria-label="Search titles">'
+               f'<select id="il" aria-label="Label"><option value="">All labels</option>{options}</select></div>')
+        main = f'{rh(kind)}<div class="wrap"><div class="col">{bar}{sections}<p class="more-link"><a href="{gh_list}" rel="noopener">{title} on GitHub{icon("ext", "xs")}</a></p></div></div>'
         write(page_file(f"/{name}/{kind}/"), layout(f"{title} · {USER}/{name}", main, path=f"/{name}/{kind}/"))
         for i in items:
             url = f"https://github.com/{USER}/{name}/{gh_kind}/{i['n']}"
@@ -1140,9 +1162,13 @@ def render_repo(meta, bare, out_dir):
             clone = f"https://github.com/{USER}/{name}.git"
             ssh = f"git@github.com:{USER}/{name}.git"
             zipu = f"{gh}/archive/refs/heads/{q(branch)}.zip"
+            links = "".join(f'<a class="pl" href="{href}">{icon("branch")}<span>{esc(n)}</span></a>' for n, href in
+                     [(default_branch, f"/{q(name)}/")] + [(b["name"], f"/{q(name)}/branch/{q(b['name'].replace('/', '~'))}/") for b in others])
+            picker = (f'<details class="clone branches"><summary class="btn">{icon("branch")}<span>{esc(branch)}</span>{icon("down")}</summary>'
+                      f'<div class="pop">{links}<a class="pl" href="/{q(name)}/branches/">All branches</a></div></details>')
             goto = (f'<button class="btn" type="button" data-goto="{esc(name)}/">{icon("search")}<span>Go to file</span></button>') if is_default else ""
             return f"""<div class="tbar">
-    <a class="btn" href="/{q(name)}/branches/">{icon('branch')}<span>{esc(branch)}</span></a>
+    {picker}
     {goto}
     <details class="clone"><summary class="btn pri"><span>Clone</span>{icon('down')}</summary>
     <div class="pop"><label>HTTPS</label><div class="cp"><input readonly value="{esc(clone)}" aria-label="HTTPS clone URL"><button type="button" class="ib" data-copy="{esc(clone)}" aria-label="Copy">{icon('copy')}{icon('check', 'ck')}</button></div>
@@ -1276,6 +1302,7 @@ def render_repo(meta, bare, out_dir):
 
     # ---- default branch first, then the most recently updated others
     others = [b for b in branches if b["name"] != branch][:MAX_BRANCHES]
+    default_branch = branch
     refs = [(branch, head)] + [(b["name"], b["sha"]) for b in others]
     history = {n: read_commits(bare, sha) for n, sha in refs}
     detail_map = {n: read_details(bare, sha) for n, sha in refs}
@@ -1438,7 +1465,7 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
         side_bits += f'<span>{icon("star")}{m.get("stargazers_count", 0)}</span><span>{icon("fork")}{m.get("forks_count", 0)}</span>'
         topics = "".join(f'<span>{esc(t)}</span>' for t in m.get("topics") or [])
         rows.append(
-            f'<li class="rrow" data-n="{esc(m["name"].lower())}" data-d="{esc((m.get("description") or "").lower())}" data-l="{esc((lang or "").lower())}" data-s="{m.get("stargazers_count", 0)}" data-t="{ts}">'
+            f'<li class="rrow" data-n="{esc(m["name"].lower())}" data-d="{esc((m.get("description") or "").lower())}" data-l="{esc((lang or "").lower())}" data-s="{m.get("stargazers_count", 0)}" data-t="{ts}" data-f="{1 if m.get("fork") else 0}">'
             f'{avatar(m["name"])}<div class="rbody"><div class="r1"><span class="mu">{esc(USER)} /</span><a class="rn" href="/{q(m["name"])}/">{esc(m["name"])}</a>{badges}<span class="rside">{side_bits}</span></div>'
             f'{f"<p>{esc(m["description"])}</p>" if m.get("description") else ""}'
             f'{f"<div class=chips>{topics}</div>" if topics else ""}'
@@ -1474,11 +1501,13 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
             f'<a class="tab{" on" if k == active else ""}" href="{h}">{icon(ic)}<span>{label}</span>{count}</a>' for k, h, ic, label, count in links) + "</div></nav>"
 
     synced = f'<p class="synced mu">Synced {timetag(built_at)} · {esc(REBUILD_NOTE)}</p>'
-    overview = (f'{tabs("overview")}<div class="wrap home"><aside>{prof}</aside><div class="hmain">{readme}'
+    overview = (f'{tabs("overview")}<div class="wrap home"><aside>{prof}</aside><div class="hmain">{pinned_html(extras.get("pinned") or [], {m["name"] for m in repos})}{readme}'
                 f'{calendar_html(extras.get("calendar"))}{activity_html(commits)}{synced}</div></div>')
     listing = f"""{tabs("repos")}<div class="wrap">
 <div class="hbar"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
 <input id="rf" type="search" placeholder="Filter repositories…" aria-label="Filter repositories" autocomplete="off">
+<select id="rlang" aria-label="Language"><option value="">All languages</option>{"".join(f'<option value="{esc(x.lower())}">{esc(x)}</option>' for x in sorted({m["language"] for m in repos if m.get("language")}))}</select>
+<label class="chk"><input type="checkbox" id="rfork"> Hide forks</label>
 <select id="rs" aria-label="Sort repositories"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>
 <p class="empty" id="rempty" hidden>No repositories match.</p>

@@ -164,13 +164,14 @@
       rows.sort((a, b) => by === 'n' ? a.dataset.n.localeCompare(b.dataset.n) : (b.dataset[by] - a.dataset[by]) || a.dataset.n.localeCompare(b.dataset.n));
       let shown = 0;
       rows.forEach((r) => {
-        const hit = !q || (r.dataset.n + ' ' + r.dataset.d + ' ' + r.dataset.l).includes(q);
+        const lang = $('#rlang').value, noForks = $('#rfork').checked;
+        const hit = (!q || (r.dataset.n + ' ' + r.dataset.d + ' ' + r.dataset.l).includes(q)) && (!lang || r.dataset.l === lang) && !(noForks && r.dataset.f === '1');
         r.hidden = !hit; if (hit) shown++;
         list.appendChild(r);
       });
       empty.hidden = shown > 0;
     };
-    f.oninput = run; s.onchange = run;
+    f.oninput = run; s.onchange = run; $('#rlang').onchange = run; $('#rfork').onchange = run;
   }
 
   /* ───── global search (repos + files) ───── */
@@ -289,10 +290,21 @@
   });
   addEventListener('resize', () => wrap && applyWrap());
 
+  /* ───── issue / PR filters ───── */
+  function itemFilter() {
+    const f = $('#if'); if (!f) return;
+    const l = $('#il');
+    const run = () => {
+      const q = f.value.trim().toLowerCase();
+      $$('.items .rr').forEach((r) => (r.hidden = !(r.dataset.title.includes(q) && (!l.value || r.dataset.labels.split('\n').includes(l.value)))));
+    };
+    f.oninput = run; l.onchange = run;
+  }
+
   /* ───── init per page ───── */
   function init() {
     window.__cur = location.pathname + location.search;
-    times(document); homeList(); applyHash(); observeLinks(); onScroll(); copyButtons(); applyWrap();
+    times(document); homeList(); applyHash(); observeLinks(); onScroll(); itemFilter(); copyButtons(); applyWrap();
   }
   history.replaceState({ y: 0 }, '');
   init();

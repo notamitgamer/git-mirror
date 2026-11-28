@@ -237,6 +237,13 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .toc .l2 { padding-left: 14px; } .toc .l3 { padding-left: 28px; }
 .codebox.wrapped .code { flex: 1 1 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-wrap][aria-pressed="true"] { background: var(--acbg); color: var(--ac); }
+.items .rr[hidden] { display: none; }
+.hbar .chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mu); }
+.ifilter { margin: 14px 0 0; }
+.clone.branches { margin-left: 0; } .clone.branches .pop { left: 0; right: auto; max-height: 60vh; overflow: auto; }
+.clone.branches[open] summary { background: var(--bg3); }
+.pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.pin { padding: 12px 14px; } .pin p { margin: 4px 0 8px; font-size: 13px; }
 /* readme / markdown */
 .readme { margin-top: 16px; }
 .readme > header { display: flex; align-items: center; gap: 8px; }
