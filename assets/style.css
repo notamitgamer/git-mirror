@@ -372,14 +372,14 @@ pre:not(.ln):not(.code):not(.cbody) { white-space: pre-wrap; }
 /* ── repository list on phones: one control per line or pair, with room to breathe ── */
 .rlist { margin-top: 4px; }
 @media (max-width: 720px) {
-  #repos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; }
-  #repos .sec { grid-column: 1 / -1; margin: 18px 0 4px; }
-  #repos #rf { grid-column: 1 / -1; max-width: none; width: 100%; height: 40px; }
-  #repos select { width: 100%; height: 40px; }
-  #repos #rlang { grid-row: 3; grid-column: 1; }
-  #repos #rs { grid-row: 3; grid-column: 2; }
-  #repos .chk { grid-column: 1 / -1; min-height: 32px; }
-  #repos .chk input { width: 18px; height: 18px; }
+  .hbar:not(.ifilter) { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; }
+  .hbar:not(.ifilter) .sec { grid-column: 1 / -1; margin: 18px 0 4px; }
+  .hbar:not(.ifilter) #rf { grid-column: 1 / -1; max-width: none; width: 100%; height: 40px; }
+  .hbar:not(.ifilter) select { width: 100%; height: 40px; }
+  .hbar:not(.ifilter) #rlang { grid-row: 3; grid-column: 1; }
+  .hbar:not(.ifilter) #rs { grid-row: 3; grid-column: 2; }
+  .hbar:not(.ifilter) .chk { grid-column: 1 / -1; min-height: 32px; }
+  .hbar:not(.ifilter) .chk input { width: 18px; height: 18px; }
   .rrow { padding: 16px 12px; gap: 10px; }
   .rbody p { margin: 8px 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
   .rbody .chips { margin: 8px 0; }
