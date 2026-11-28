@@ -11,6 +11,9 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
+  deployments: read
   pages: write
   id-token: write
   actions: write                 # only used by the keep-alive step below
@@ -25,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -38,7 +41,7 @@ jobs:
       # copied from here instead of re-rendered, so most hourly runs finish in seconds.
       - name: Restore build cache
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .cache
           key: mirror-v2-${{ github.run_id }}
@@ -59,16 +62,23 @@ jobs:
       # Only write a new cache entry when something actually changed.
       - name: Save build cache
         if: steps.build.outputs.changed == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .cache
           key: mirror-v2-${{ github.run_id }}
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      # Packed by hand: upload-pages-artifact always drops ".github", which broke mirrored .github folders.
+      - name: Pack site
+        run: tar --dereference --hard-dereference -cf "$RUNNER_TEMP/artifact.tar" -C site .
+
+      - uses: actions/upload-artifact@v7
         with:
-          path: site
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
       # GitHub disables scheduled workflows after 60 days without repo activity.
       # Re-enabling the workflow through the API resets that timer.
@@ -87,4 +97,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

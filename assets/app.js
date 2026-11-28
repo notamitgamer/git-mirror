@@ -240,10 +240,24 @@
     await p.prompt();
   });
 
+  /* ───── back to top + active home tab ───── */
+  const top_ = $('#top');
+  function onScroll() {
+    top_.hidden = scrollY < 600;
+    const tabs = $$('.htabs .tab'), repos = $('#repos');
+    if (!tabs.length || !repos) return;
+    const atEnd = innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+    const inRepos = repos.getBoundingClientRect().top < 160 || (atEnd && scrollY > 0);
+    tabs[0].classList.toggle('on', !inRepos);
+    tabs[1].classList.toggle('on', inRepos);
+  }
+  addEventListener('scroll', onScroll, { passive: true });
+  top_.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+
   /* ───── init per page ───── */
   function init() {
     window.__cur = location.pathname + location.search;
-    times(document); homeList(); applyHash(); observeLinks();
+    times(document); homeList(); applyHash(); observeLinks(); onScroll();
   }
   history.replaceState({ y: 0 }, '');
   init();

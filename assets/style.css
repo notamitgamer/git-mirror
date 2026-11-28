@@ -116,6 +116,14 @@ html.loading::before { content: ""; position: fixed; z-index: 100; inset: 0 auto
 .rside { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
 .rside span { display: inline-flex; gap: 4px; align-items: center; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+@media (max-width: 720px) { .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .chips span { flex: none; white-space: nowrap; } }
+.htabs .tab.on { color: var(--tx); border-bottom-color: var(--ac); }
+#top { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 45; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--bd); background: var(--bg3); color: var(--ac); font-size: 18px; cursor: pointer; }
+#top[hidden] { display: none; }
+.items .rr { flex-wrap: wrap; } .items .rn2 { max-width: 100%; flex: 1 1 60%; }
+.label { display: inline-block; border: 1px solid; border-radius: 999px; padding: 0 8px; font-size: 12px; }
+.comment { margin-bottom: 12px; } .comment > header { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-weight: 400; }
+.comment > header img { border-radius: 50%; }
 .chips span { background: var(--bg3); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
 .hbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .hbar .sec { margin: 18px 0 12px; margin-right: auto; }

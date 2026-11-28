@@ -24,6 +24,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from html.parser import HTMLParser
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -270,14 +271,77 @@ def markdown_engine():
 _ABS = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|#)", re.I)
 
 
+_SAFE_TAGS = set("a abbr b blockquote br caption cite code dd del details dfn div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins "
+                 "kbd li mark ol p picture pre q rp rt ruby s samp small source span strike strong sub summary sup table tbody td tfoot th "
+                 "thead tr tt ul var center input".split())
+_DROP = {"script", "style", "iframe", "object", "template", "noscript", "textarea", "select", "title", "svg", "math"}
+_VOID = {"br", "hr", "img", "source", "input"}
+_SAFE_ATTRS = {"href", "src", "srcset", "media", "alt", "title", "align", "valign", "width", "height", "colspan", "rowspan",
+               "open", "start", "class", "type", "checked", "disabled", "loading"}
+
+
+def _safe_url(v):
+    scheme = re.match(r"([a-z][a-z0-9+.-]*):", re.sub(r"[\x00-\x20]", "", v).lower())
+    return not scheme or scheme.group(1) in ("http", "https", "mailto")
+
+
+class _Sanitizer(HTMLParser):
+    """Rebuilds HTML from an allowlist, so anything not listed (and every stray "<") cannot survive."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out, self.open, self.dropping = [], [], []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in _DROP:
+            self.dropping.append(tag)
+        if self.dropping or tag not in _SAFE_TAGS:
+            return
+        attrs = dict(attrs)
+        if tag == "input" and attrs.get("type") != "checkbox":
+            return
+        keep = []
+        for k, v in attrs.items():
+            v = v or ""
+            if k not in _SAFE_ATTRS or (k in ("href", "src", "srcset") and not _safe_url(v)):
+                continue
+            if k == "class" and not re.fullmatch(r"language-[\w+#.-]+", v):
+                continue
+            keep.append(f' {k}="{esc(v)}"')
+        if tag == "input":
+            keep.append(' disabled=""' if "disabled" not in attrs else "")
+        self.out.append(f"<{tag}{''.join(keep)}>")
+        if tag not in _VOID:
+            self.open.append(tag)
+
+    def handle_endtag(self, tag):
+        if self.dropping:
+            if tag == self.dropping[-1]:
+                self.dropping.pop()
+            return
+        if tag in self.open:      # close anything left open inside it, never a tag of the surrounding page
+            while self.open:
+                t = self.open.pop()
+                self.out.append(f"</{t}>")
+                if t == tag:
+                    break
+
+    def handle_data(self, data):
+        if not self.dropping:
+            self.out.append(html.escape(data, quote=False))
+
+
+def sanitize(fragment):
+    p = _Sanitizer()
+    p.feed(fragment)
+    p.close()
+    return "".join(p.out) + "".join(f"</{t}>" for t in reversed(p.open))
+
+
 def render_markdown(text, repo, branch, base_dir, tree_files, tree_dirs, root=None):
     root = root or f"/{q(repo)}"
     out = markdown_engine().render(text)
-    # sanitise: drop scripts/frames/handlers/js: urls
-    out = re.sub(r"<(script|style|iframe|object|embed)\b.*?</\1\s*>", "", out, flags=re.S | re.I)
-    out = re.sub(r"<(script|iframe|object|embed)\b[^>]*>", "", out, flags=re.I)
-    out = re.sub(r"\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", "", out, flags=re.I)
-    out = re.sub(r'(href|src)\s*=\s*"\s*javascript:[^"]*"', r'\1="#"', out, flags=re.I)
+    out = sanitize(out)
 
     def fix(m):
         attr, val = m.group(1), m.group(2)
@@ -421,6 +485,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <span>Static mirror of <a href="https://github.com/{esc(USER)}" rel="noopener">@{esc(USER)}</a>&rsquo;s public repositories</span>
 <span><a href="https://github.com/{esc(SELF_REPO)}" rel="noopener">Source</a> · <a href="/last_commit" data-nopjax>Build info</a></span>
 </div></footer>
+<button id="top" type="button" aria-label="Back to top" hidden>&#8593;</button>
 </body>
 </html>
 """
@@ -454,6 +519,8 @@ def repo_head(meta, active, counts):
         ("commits", f"/{q(repo)}/commits/", "commit", "Commits", counts.get("commits")),
         ("branches", f"/{q(repo)}/branches/", "branch", "Branches", counts.get("branches")),
         ("tags", f"/{q(repo)}/tags/", "tag", "Tags", counts.get("tags")),
+        ("issues", f"/{q(repo)}/issues/", "clock", "Issues", counts.get("issues")),
+        ("pulls", f"/{q(repo)}/pulls/", "fork", "Pull requests", counts.get("pulls")),
         ("releases", f"/{q(repo)}/releases/", "download", "Releases", counts.get("releases")),
     ]
     tabs_html = "".join(
@@ -775,6 +842,126 @@ def activity_html(commits):
     return f'<section class="card"><h3>Recent commits</h3>{"".join(rows)}</section>'
 
 
+MAX_ITEMS_PAGES = 3        # x100 newest-updated issues, pull requests and comments per repo
+
+
+def api_pages(path):
+    out = []
+    for page in range(1, MAX_ITEMS_PAGES + 1):
+        batch = api(f"{path}{'&' if '?' in path else '?'}per_page=100&page={page}")
+        out += batch
+        if len(batch) < 100:
+            break
+    return out
+
+
+def who(u):
+    u = u or {}
+    return {"login": u.get("login") or "ghost", "avatar": u.get("avatar_url") or ""}
+
+
+def fetch_discussions(meta):
+    """Issues and pull requests with their comments, as they stand at build time."""
+    name = meta["name"]
+    base = f"/repos/{USER}/{urllib.parse.quote(name)}"
+    path = lambda kind: os.path.join(CACHE, kind, name + ".json")
+
+    def item(i):
+        return {"n": i["number"], "title": i["title"], "state": i["state"], "user": who(i.get("user")), "body": i.get("body") or "",
+                "date": i.get("created_at") or "", "labels": [[l["name"], l.get("color") or ""] for l in i.get("labels", [])],
+                "merged": bool(i.get("merged_at")), "draft": bool(i.get("draft")), "updated": i.get("updated_at") or "",
+                "count": i.get("comments")}
+
+    def note(c, kind, text=None):
+        return {"n": int((c.get("issue_url") or c.get("pull_request_url") or "/0").rsplit("/", 1)[1]), "user": who(c.get("user")),
+                "body": c.get("body") or "", "date": c.get("created_at") or c.get("submitted_at") or "", "kind": text or kind}
+
+    issues = []
+    if meta.get("has_issues", True):
+        issues = cached_json(path("issues"), lambda: [item(i) for i in api_pages(base + "/issues?state=all&sort=updated") if "pull_request" not in i], [])
+    pulls = cached_json(path("pulls"), lambda: [item(i) for i in api_pages(base + "/pulls?state=all&sort=updated&direction=desc")], [])
+    comments = []
+    if issues or pulls:
+        comments += cached_json(path("comments"), lambda: [note(c, "commented") for c in api_pages(base + "/issues/comments?sort=updated&direction=desc")], [])
+    if pulls:
+        comments += cached_json(path("review_comments"), lambda: [note(c, "", f"commented on {c.get('path', 'a file')}") for c in api_pages(base + "/pulls/comments?sort=updated&direction=desc")], [])
+        # reviews need one request per pull request: only ask again when that pull request changed
+        try:
+            with open(path("reviews"), encoding="utf-8") as fh:
+                old = json.load(fh)
+        except Exception:
+            old = {}
+        new = {}
+        for p in pulls[:30]:
+            key = str(p["n"])
+            hit = old.get(key)
+            if not hit or hit["updated"] != p["updated"]:
+                try:
+                    rv = api(f"{base}/pulls/{p['n']}/reviews?per_page=100")
+                    hit = {"updated": p["updated"], "list": [
+                        {"n": p["n"], "user": who(r.get("user")), "body": r.get("body") or "", "date": r.get("submitted_at") or "",
+                         "kind": {"APPROVED": "approved these changes", "CHANGES_REQUESTED": "requested changes"}.get(r["state"], "reviewed")}
+                        for r in rv if r["state"] != "PENDING" and (r.get("body") or r["state"] != "COMMENTED")]}
+                except Exception as e:
+                    log(f"  ! reviews for {name}#{p['n']} not fetched ({e})")
+            if hit:
+                new[key] = hit
+                comments += hit["list"]
+        write(path("reviews"), json.dumps(new))
+    return {"issues": issues, "pulls": pulls, "comments": comments}
+
+
+def when(date):
+    return timetag(int(datetime.fromisoformat(date.replace("Z", "+00:00")).timestamp())) if date else ""
+
+
+def state_badge(i):
+    if i["merged"]:
+        return '<span class="badge ok">Merged</span>'
+    if i["state"] == "open":
+        return '<span class="badge warn">Draft</span>' if i["draft"] else '<span class="badge ok">Open</span>'
+    return '<span class="badge bad">Closed</span>'
+
+
+def label_html(labels):
+    return "".join(f'<span class="label" style="border-color:#{c if re.fullmatch("[0-9a-fA-F]{6}", c) else "9399b2"}">{esc(n)}</span> ' for n, c in labels)
+
+
+def render_discussions(meta, rh, branch, tree_files, tree_dirs):
+    name = meta["name"]
+    d = meta.get("discussions") or {}
+    threads = {}
+    for c in d.get("comments", []):
+        threads.setdefault(c["n"], []).append(c)
+
+    def box(c, verb):
+        img = f'<img src="{esc(c["user"]["avatar"])}&s=48" alt="" width="24" height="24" loading="lazy">' if c["user"]["avatar"] else ""
+        body = render_markdown(c["body"], name, branch, "", tree_files, tree_dirs) if c["body"].strip() else '<p class="mu">No description provided.</p>'
+        return f'<section class="comment card"><header>{img}<b>{esc(c["user"]["login"])}</b><span class="mu">{esc(verb)} {when(c["date"])}</span></header><article class="md">{body}</article></section>'
+
+    for kind, title, gh_kind in (("issues", "Issues", "issues"), ("pulls", "Pull requests", "pull")):
+        items = sorted(d.get(kind, []), key=lambda i: -i["n"])
+        sections = ""
+        for label, group in (("Open", [i for i in items if i["state"] == "open"]), ("Closed", [i for i in items if i["state"] != "open"])):
+            rows = "".join(f'<div class="rr"><a class="rn2" href="/{q(name)}/{kind}/{i["n"]}/"><span>{esc(i["title"])}</span></a>{state_badge(i)}{label_html(i["labels"])}'
+                           f'<span class="fm">#{i["n"]} by {esc(i["user"]["login"])}</span><span class="ft">{when(i["date"])}</span></div>' for i in group)
+            sections += f'<h2 class="sec">{label} <em>{len(group)}</em></h2><div class="ftable items">{rows or "<div class=empty>Nothing here.</div>"}</div>'
+        gh_list = f"https://github.com/{USER}/{name}/{kind}"
+        main = f'{rh(kind)}<div class="wrap"><div class="col">{sections}<p class="more-link"><a href="{gh_list}" rel="noopener">{title} on GitHub{icon("ext", "xs")}</a></p></div></div>'
+        write(page_file(f"/{name}/{kind}/"), layout(f"{title} · {USER}/{name}", main, path=f"/{name}/{kind}/"))
+        for i in items:
+            url = f"https://github.com/{USER}/{name}/{gh_kind}/{i['n']}"
+            thread = sorted(threads.get(i["n"], []), key=lambda c: c["date"])
+            missing = ""
+            if i["count"] and i["count"] > sum(c["kind"] == "commented" for c in thread):
+                missing = '<p class="notice">Some older comments are only on GitHub.</p>'
+            files = f'<a class="btn sm" href="{url}/files" rel="noopener">Files changed{icon("ext", "xs")}</a> ' if kind == "pulls" else ""
+            main = (f'{rh(kind)}<div class="wrap"><div class="col"><div class="chead"><h2>{esc(i["title"])} <span class="mu">#{i["n"]}</span></h2>'
+                    f'<div class="cmeta">{state_badge(i)}{label_html(i["labels"])}{files}<a class="btn sm" href="{url}" rel="noopener">Reply on GitHub{icon("ext", "xs")}</a></div></div>'
+                    f'{box(i, "opened")}{missing}{"".join(box(c, c["kind"]) for c in thread)}</div></div>')
+            write(page_file(f"/{name}/{kind}/{i['n']}/"), layout(f"{i['title']} · {USER}/{name}#{i['n']}", main, path=f"/{name}/{kind}/{i['n']}/"))
+
+
 def render_repo(meta, bare, out_dir):
     name = meta["name"]
     try:
@@ -945,13 +1132,13 @@ def render_repo(meta, bare, out_dir):
                         f'<span>{icon("file")}<b>{human_size(total_size)}</b></span></div>')
             main = f'{rh("code")}<div class="wrap cols"><div class="col">{meta_bar}{toolbar()}{listing("")}{readme}</div>{side}</div>'
             write(page_file(f"{raw_root}/"), layout(f"{USER}/{name}" + (f": {meta['description']}" if meta.get("description") else ""),
-                                                main, path=f"{raw_root}/", desc=meta.get("description") or "", cls="p-repo"))
+                                                main, path=f"{raw_root}/", desc=meta.get("description") or "", cls="p-repo", noindex=not is_default))
 
             # ---- tree pages
             for d in sorted(tree_dirs):
                 parts = d.split("/")
                 main = (f'{rh("code")}<div class="wrap"><div class="col">{toolbar()}{crumbs(name, parts, root=root)}{listing(d)}</div></div>')
-                write(page_file(f"{raw_root}/tree/{d}/"), layout(f"{d} · {USER}/{name}", main, path=f"{raw_root}/tree/{d}/", cls="p-tree"))
+                write(page_file(f"{raw_root}/tree/{d}/"), layout(f"{d} · {USER}/{name}", main, path=f"{raw_root}/tree/{d}/", cls="p-tree", noindex=not is_default))
 
             # ---- blob pages
             for n_i, path in enumerate(sorted(tree_files)):
@@ -994,7 +1181,7 @@ def render_repo(meta, bare, out_dir):
                 body = (f'<div class="blob card{extra_cls}"><header class="bh"><span class="bn">{icon("file")}<b>{esc(fname)}</b><em>{meta_txt}</em></span>'
                         f'{seg}<span class="acts">{actions}</span></header>{cbar}{view}</div>')
                 main = f'{rh("code")}<div class="wrap"><div class="col">{toolbar()}{crumbs(name, path.split("/"), True, root=root)}{body}</div></div>'
-                write(page_file(f"{raw_root}/blob/{path}/"), layout(f"{path} · {USER}/{name}", main, path=f"{raw_root}/blob/{path}/", cls="p-blob"))
+                write(page_file(f"{raw_root}/blob/{path}/"), layout(f"{path} · {USER}/{name}", main, path=f"{raw_root}/blob/{path}/", cls="p-blob", noindex=not is_default))
         finally:
             cat.close()
 
@@ -1019,7 +1206,7 @@ def render_repo(meta, bare, out_dir):
         if n_commits > len(details) or shallow:
             more = f'<p class="more-link"><a href="{gh}/commits/{q(branch)}" rel="noopener">View full history on GitHub{icon("ext", "xs")}</a></p>'
         main = f'{rh("commits")}<div class="wrap"><div class="col"><h2 class="sec">History <em>{esc(branch)}</em></h2>{"".join(items)}{more}</div></div>'
-        write(page_file(f"{raw_root}/commits/"), layout(f"Commits · {USER}/{name}", main, path=f"{raw_root}/commits/", cls="p-commits"))
+        write(page_file(f"{raw_root}/commits/"), layout(f"Commits · {USER}/{name}", main, path=f"{raw_root}/commits/", cls="p-commits", noindex=not is_default))
 
         return tree_files, tree_dirs
 
@@ -1038,8 +1225,9 @@ def render_repo(meta, bare, out_dir):
     releases = meta.get("releases", [])
     shallow = history[branch][1]
     counts = {"commits": f"{len(history[branch][0])}+" if shallow else str(len(history[branch][0])),
-              "branches": len(branches), "tags": len(tags), "releases": len(releases)}
-    rh = lambda active: repo_head(meta, active, counts)
+              "branches": len(branches), "tags": len(tags), "releases": len(releases),
+              **{k: sum(i["state"] == "open" for i in (meta.get("discussions") or {}).get(k, [])) for k in ("issues", "pulls")}}
+    rh = rh_default = lambda active: repo_head(meta, active, counts)
     tree_files, tree_dirs = render_ref(branch, head, f"/{q(name)}", f"/{name}", True)
     files_out = sorted(tree_files)
     browsable = {branch}
@@ -1049,6 +1237,8 @@ def render_repo(meta, bare, out_dir):
         browsable.add(b["name"])
 
     # ---- commit pages
+    render_discussions(meta, rh_default, branch, tree_files, tree_dirs)
+
     for d in all_details.values():
         sha = d["sha"]
         boundary = sha in boundaries
@@ -1120,8 +1310,8 @@ def build_one(meta, prev_key):
         retry(lambda: sync_repo(name, bare))
         head = git(bare, "rev-parse", "HEAD", check=False).strip()
         refs = git(bare, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/tags")
-        meta = {**meta, "releases": fetch_releases(name), **fetch_extras(name)}
-        sig = {"v": CFG["src"], "base": CFG["base"], "head": head, "refs": refs, "releases": meta["releases"],
+        meta = {**meta, "releases": fetch_releases(name), **fetch_extras(name), "discussions": fetch_discussions(meta)}
+        sig = {"v": CFG["src"], "base": CFG["base"], "head": head, "refs": refs, "releases": meta["releases"], "discussions": meta["discussions"],
                "contributors": meta["contributors"], "deployments": meta["deployments"], "branches": MAX_BRANCHES,
                "meta": {k: meta.get(k) for k in ("description", "stargazers_count", "forks_count", "topics", "homepage", "fork", "archived", "license", "default_branch")}}
         key = hashlib.sha1(json.dumps(sig, sort_keys=True, default=str).encode()).hexdigest()
@@ -1315,6 +1505,8 @@ def main():
             rel = os.path.relpath(dirpath, SITE).replace(os.sep, "/")
             rel = "" if rel == "." else rel
             top = rel.split("/")[0]
+            if rel.split("/")[1:2] == ["branch"]:
+                continue
             if rel and "/blob/" in "/" + rel + "/" and len(urls) > 40000:
                 continue
             urls.append((rel, pushed.get(top, "")))
