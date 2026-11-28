@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -36,6 +36,31 @@ jobs:
           cache: pip
 
       - run: pip install -r requirements.txt
+
+      # Code that has not passed the tests is never deployed, whatever triggered the run. A commit that passed
+      # once is remembered, so the half-hourly runs skip this. Tests use made-up data, not the live account.
+      - name: Already tested?
+        id: tested
+        uses: actions/cache/restore@v6
+        with:
+          path: .tested
+          key: tested-${{ github.sha }}
+          lookup-only: true
+
+      - name: Test
+        if: steps.tested.outputs.cache-hit != 'true'
+        run: |
+          pip install -r tests/requirements.txt
+          python -m playwright install --with-deps chromium
+          python tests/test_site.py
+          echo "${{ github.sha }}" > .tested
+
+      - name: Remember the pass
+        if: steps.tested.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .tested
+          key: tested-${{ github.sha }}
 
       # Bare clones + already-rendered pages. A repo whose HEAD/refs/metadata did not change is
       # copied from here instead of re-rendered, so most hourly runs finish in seconds.
@@ -99,3 +124,29 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # For an owner who rarely looks: one open issue while builds are failing, closed again when they recover.
+  # The last good site stays online meanwhile.
+  report:
+    needs: [build, deploy]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Open or close the failure issue
+        continue-on-error: true   # forks have issues switched off
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ contains(needs.*.result, 'failure') }}
+          OK: ${{ needs.deploy.result == 'success' }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Mirror build is failing"
+          number=$(gh issue list --state open --author "app/github-actions" --json number,title -q ".[] | select(.title==\"$title\") | .number" | head -n1)
+          if [ "$FAILED" = true ] && [ -z "$number" ]; then
+            gh issue create --title "$title" --body "@${{ github.repository_owner }} the mirror did not update. The last good site is still online. First failing run: $RUN"
+          elif [ "$OK" = true ] && [ -n "$number" ]; then
+            gh issue close "$number" --comment "Working again: $RUN"
+          fi

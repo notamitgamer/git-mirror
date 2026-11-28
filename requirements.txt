@@ -1,3 +1,6 @@
-markdown-it-py[linkify]>=3.0
-Pygments>=2.17
-emoji>=2.8
+# Exact versions, so an unattended build cannot change under us. Update on purpose, then let the tests run.
+markdown-it-py==4.2.0
+mdurl==0.1.2
+linkify-it-py==2.2.0
+Pygments==2.21.0
+emoji==2.16.0

@@ -122,6 +122,10 @@
       document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} ta.remove(); return ok;
     }
   }
+  document.addEventListener('click', (e) => {
+    const day = e.target.closest('.cal i');
+    if (day) $('.caltip').textContent = day.title;
+  });
   document.addEventListener('click', async (e) => {
     const c = e.target.closest('[data-copy]');
     if (c) { if (await copy(c.dataset.copy)) { c.classList.add('done'); setTimeout(() => c.classList.remove('done'), 1500); } return; }
@@ -170,7 +174,8 @@
         list.appendChild(r);
       });
       empty.hidden = shown > 0;
-      $('#rcount').textContent = shown === rows.length ? rows.length : shown + ' of ' + rows.length;
+      $('#rcount').textContent = 'Showing ' + shown + ' of ' + rows.length;
+      $('#rcount').hidden = shown === rows.length;
     };
     f.oninput = run; s.onchange = run; $('#rlang').onchange = run;
     const forks = $('#rfork');
@@ -258,7 +263,7 @@
     const bar = $('meta[name="theme-color"]');
     if (bar) bar.content = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim();
   }
-  picker.value = document.documentElement.dataset.theme || picker.options[0].value;
+  picker.value = document.documentElement.dataset.theme || $('meta[name="themes"]').content.split(',')[0];
   picker.addEventListener('change', () => {
     document.documentElement.dataset.theme = picker.value;
     try { localStorage.setItem('theme', picker.value); } catch {}
@@ -307,14 +312,34 @@
     f.oninput = run; l.onchange = run;
   }
 
+  /* ───── warn when the mirror stopped updating (the home page is rebuilt on every run) ───── */
+  function stale() {
+    const el = $('#stale'), home = $('.synced time');
+    if (!el || !home) return;
+    const days = Math.floor((Date.now() - new Date(home.getAttribute('datetime'))) / 864e5);
+    el.hidden = !(days >= 2 && navigator.onLine);
+    el.textContent = 'This mirror has not updated for ' + days + ' days.';
+  }
+
   /* ───── offline notice ───── */
   const net = () => ($('#offline').hidden = navigator.onLine);
   addEventListener('online', net); addEventListener('offline', net); net();
 
+  /* ───── fade the edge of a tab bar that can be swiped ───── */
+  function tabEdges() {
+    $$('.rhead .tabs').forEach((t) => {
+      const mark = () => t.classList.toggle('swipe', t.scrollWidth - t.clientWidth - t.scrollLeft > 4);
+      t.onscroll = mark; mark();
+      const on = $('.tab.on', t);
+      if (on && on.offsetLeft + on.offsetWidth > t.clientWidth) { t.scrollLeft = on.offsetLeft - 40; mark(); }
+    });
+  }
+  addEventListener('resize', tabEdges);
+
   /* ───── init per page ───── */
   function init() {
     window.__cur = location.pathname + location.search;
-    times(document); homeList(); applyHash(); observeLinks(); onScroll(); itemFilter(); copyButtons(); applyWrap();
+    times(document); homeList(); applyHash(); observeLinks(); onScroll(); stale(); tabEdges(); itemFilter(); copyButtons(); applyWrap();
   }
   history.replaceState({ y: 0 }, '');
   init();

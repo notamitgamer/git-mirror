@@ -83,6 +83,15 @@ custom domain) and is then rebuilt on every push and on GitHub's schedule (see a
 Optional repository variables (*Settings → Secrets and variables → Actions → Variables*): `MIRROR_USER`,
 `MIRROR_EXCLUDE` (comma separated), `MIRROR_BASE_URL` and `MIRROR_REBUILD_NOTE` (home page timing text).
 
+## Running unattended
+
+* Tests (`tests/test_site.py`) run before any untested commit is deployed. They use made-up data.
+* If a build fails, the last good site stays online and an issue named *Mirror build is failing* is opened; it closes
+  itself once a deploy succeeds.
+* The home page shows a warning if it has not been rebuilt for two days.
+* Python packages are pinned. If the external trigger's token expires, GitHub's own schedule still updates the site,
+  just less often.
+
 ## Run it locally
 
 ```bash

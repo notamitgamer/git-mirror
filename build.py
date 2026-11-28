@@ -508,6 +508,14 @@ THEME_BOOT = ("<script>try{var t=localStorage.getItem('theme'),o=t&&document.que
               "if(o&&o.indexOf(t)>=0)document.documentElement.dataset.theme=t}catch(e){}</script>")
 
 
+def theme_options(themes):
+    groups = {}
+    for t in themes:
+        groups.setdefault(t.get("group", "Other"), []).append(f'<option value="{esc(t["id"])}">{esc(t["name"])}</option>')
+    return '<option value="auto">Follow system</option>' + "".join(
+        f'<optgroup label="{esc(g)}">{"".join(o)}</optgroup>' for g, o in groups.items())
+
+
 def layout(title, main, *, path="/", desc="", cls="", noindex=False):
     base, v = CFG["base"], CFG["v"]
     full_title = esc(title)
@@ -550,7 +558,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <a class="brand" href="/"><img src="/icon.svg" width="26" height="26" alt=""><span>{esc(USER)}<em>/git</em></span></a>
 <form class="search" role="search" onsubmit="return false"><span class="si">{icon('search')}</span><input id="q" type="search" placeholder="Search repos and files…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search repositories and files"><kbd>/</kbd><div id="results" hidden></div></form>
 <a class="nbtn" href="https://github.com/{esc(USER)}" rel="noopener" title="GitHub profile" aria-label="GitHub profile">{icon('github')}<span>GitHub</span></a>
-<label class="nbtn themes" title="Theme">{icon('palette')}<select id="theme" aria-label="Theme">{"".join(f'<option value="{esc(t["id"])}">{esc(t["name"])}</option>' for t in CFG["themes"])}<option value="auto">Follow system</option></select></label>
+<label class="nbtn themes" title="Theme">{icon('palette')}<select id="theme" aria-label="Theme">{theme_options(CFG["themes"])}</select></label>
 <button class="nbtn" id="install" type="button" title="Install app" aria-label="Install app" hidden>{icon('download')}<span>Install</span></button>
 <button class="nbtn" id="share" type="button" title="Share" aria-label="Share">{icon('share')}</button>
 </div></header>
@@ -561,6 +569,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <span>Static mirror of <a href="https://github.com/{esc(USER)}" rel="noopener">@{esc(USER)}</a>&rsquo;s public repositories</span>
 <span><a href="https://github.com/{esc(SELF_REPO)}" rel="noopener">Source</a> · <a href="/feed.xml" data-nopjax>Feed</a> · <a href="/last_commit" data-nopjax>Build info</a></span>
 </div></footer>
+<div id="stale" class="offline" role="status" hidden></div>
 <div id="offline" class="offline" role="status" hidden>You are offline. This is a saved copy and may be out of date.</div>
 <button id="top" type="button" aria-label="Back to top" hidden>&#8593;</button>
 </body>
@@ -600,6 +609,9 @@ def repo_head(meta, active, counts):
         ("pulls", f"/{q(repo)}/pulls/", "fork", "Pull requests", counts.get("pulls")),
         ("releases", f"/{q(repo)}/releases/", "download", "Releases", counts.get("releases")),
     ]
+    d = meta.get("discussions") or {}
+    has = {"issues": d.get("issues"), "pulls": d.get("pulls"), "releases": meta.get("releases")}
+    tabs = [t for t in tabs if t[0] == active or t[0] not in has or has[t[0]]]
     tabs_html = "".join(
         f'<a class="tab{" on" if k == active else ""}" href="{h}">{icon(ic)}<span>{lab}</span>'
         f'{f"<em>{c}</em>" if c is not None else ""}</a>' for k, h, ic, lab, c in tabs)
@@ -904,13 +916,21 @@ def calendar_html(cal):
     if not cal:
         return ""
     levels = {"NONE": 0, "FIRST_QUARTILE": 1, "SECOND_QUARTILE": 2, "THIRD_QUARTILE": 3, "FOURTH_QUARTILE": 4}
-    cells = []
+    cells, months, last_month, last_col = [], [], None, -9
     for col, week in enumerate(cal["weeks"], 1):
         for day in week["contributionDays"]:
             tip = f'{plural(day["contributionCount"], "contribution")} on {day["date"]}'
-            cells.append(f'<i class="l{levels.get(day["contributionLevel"], 0)}" style="grid-area:{day["weekday"] + 1}/{col}" title="{esc(tip)}"></i>')
+            cells.append(f'<i class="l{levels.get(day["contributionLevel"], 0)}" style="grid-area:{day["weekday"] + 2}/{col}" title="{esc(tip)}"></i>')
+        first = week["contributionDays"][0]["date"] if week["contributionDays"] else ""
+        if len(first) >= 7 and first[:7] != last_month:
+            last_month = first[:7]
+            if col - last_col >= 3:   # not on top of the previous label
+                name = datetime(int(first[:4]), int(first[5:7]), 1).strftime("%b")
+                months.append(f'<b style="grid-area:1/{col}">{name}</b>')
+                last_col = col
     return (f'<section class="card"><h3>{cal["totalContributions"]} contributions in the last year</h3>'
-            f'<div class="calwrap"><div class="cal">{"".join(cells)}</div></div></section>')
+            f'<div class="calwrap"><div class="cal">{"".join(months + cells)}</div></div>'
+            f'<p class="caltip mu" aria-live="polite">Tap a square to see its count.</p></section>')
 
 
 def pinned_html(pins, mirrored):
@@ -1554,11 +1574,12 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
     overview = (f'{tabs("overview")}<div class="wrap home"><aside>{prof}</aside><div class="hmain">{pinned_html(extras.get("pinned") or [], {m["name"] for m in repos})}{readme}'
                 f'{calendar_html(extras.get("calendar"))}{activity_html(commits)}{synced}</div></div>')
     listing = f"""{tabs("repos")}<div class="wrap">
-<div class="hbar"><h2 class="sec">Repositories <em id="rcount">{len(repos)}</em></h2>
+<div class="hbar"><h1 class="sr">Repositories</h1>
 <input id="rf" type="search" placeholder="Filter repositories…" aria-label="Filter repositories" autocomplete="off">
 <select id="rlang" aria-label="Language" autocomplete="off"><option value="">All languages</option>{"".join(f'<option value="{esc(x.lower())}">{esc(x)}</option>' for x in sorted({m["language"] for m in repos if m.get("language")}))}</select>
 <label class="chk"><input type="checkbox" id="rfork" autocomplete="off"> Hide forks</label>
 <select id="rs" aria-label="Sort repositories" autocomplete="off"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
+<p class="rcount mu" id="rcount" aria-live="polite" hidden></p>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>
 <p class="empty" id="rempty" hidden>No repositories match.</p>
 {synced}</div>"""
