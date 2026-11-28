@@ -53,6 +53,7 @@ jobs:
           MIRROR_EXCLUDE: ${{ vars.MIRROR_EXCLUDE || (github.repository == 'notamitgamer/git-mirror' && 'register,osma') || '' }}
           MIRROR_BASE_URL: ${{ vars.MIRROR_BASE_URL }}
           MIRROR_REBUILD_NOTE: ${{ vars.MIRROR_REBUILD_NOTE || (github.repository == 'notamitgamer/git-mirror' && 'rebuilt every 30 minutes') || '' }}
+          MIRROR_BRANCHES: ${{ vars.MIRROR_BRANCHES }}
         run: python build.py
 
       # Only write a new cache entry when something actually changed.

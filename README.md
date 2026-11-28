@@ -92,7 +92,11 @@ Configuration is by environment variable: `MIRROR_USER`, `MIRROR_EXCLUDE` (this 
 
 * Only the newest 50 commits per repo get a diff page; older history links to GitHub.
 * Files larger than 300 KB are not rendered, and files over 150 KB are shown without syntax colours.
-* Only the default branch has a browsable tree; other branches are listed and link to GitHub.
+* The default branch plus the 10 most recently updated branches are browsable (`MIRROR_BRANCHES`); older ones link
+  to GitHub. File search covers the default branch.
+* The home page shows public profile data, the contribution graph, recent commits found in the mirrored
+  repositories and the profile README. Each repository lists its deployments and contributors.
+* Issues, pull requests, editing and anything else live happen on GitHub.
 * "Last commit" columns are computed from the cloned history, so files untouched for more than 200 commits
   show no commit info.
 
