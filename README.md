@@ -24,7 +24,8 @@ Live at **https://git.amit.is-a.dev**
 1. Lists the account's public repos through the GitHub API and skips the excluded ones.
 2. Keeps a shallow bare clone of each (`--depth 200`, all branches and tags) and fetches updates incrementally.
 3. Renders every page itself: repo home, folders, files, commits, commit diffs, branches, tags, plus a global
-   search index and a sitemap.
+   search index and a sitemap. Each repository also gets a Releases page (newest 30, with notes and assets);
+   downloads link straight to GitHub.
 4. Re-renders only repos whose HEAD, refs or GitHub metadata changed; everything else is copied from the cache.
    A repo that fails to sync keeps serving its last good copy, and the failure shows up as a workflow warning
    instead of silently disappearing.
@@ -53,7 +54,7 @@ The workflow (`.github/workflows/main.yml`) runs on every push, hourly, on manua
 /<repo>/tree/<dir>/    folder
 /<repo>/blob/<file>/   file (highlighted, Markdown preview, images)
 /<repo>/commits/       history      /<repo>/commit/<sha10>/   diff
-/<repo>/branches/      /<repo>/tags/
+/<repo>/branches/      /<repo>/tags/      /<repo>/releases/
 ```
 
 ## Fork and deploy your own

@@ -447,6 +447,7 @@ def repo_head(meta, active, counts):
         ("commits", f"/{q(repo)}/commits/", "commit", "Commits", counts.get("commits")),
         ("branches", f"/{q(repo)}/branches/", "branch", "Branches", counts.get("branches")),
         ("tags", f"/{q(repo)}/tags/", "tag", "Tags", counts.get("tags")),
+        ("releases", f"/{q(repo)}/releases/", "download", "Releases", counts.get("releases")),
     ]
     tabs_html = "".join(
         f'<a class="tab{" on" if k == active else ""}" href="{h}">{icon(ic)}<span>{lab}</span>'
@@ -607,6 +608,46 @@ def read_details(bare, head):
     return out
 
 
+def fetch_releases(name):
+    """Newest 30 published releases. Files are not copied: download links go straight to GitHub."""
+    path = os.path.join(CACHE, "releases", name + ".json")
+    try:
+        data = retry(lambda: api(f"/repos/{USER}/{urllib.parse.quote(name)}/releases?per_page=30"))
+        rels = [{"tag": r["tag_name"], "name": r.get("name") or r["tag_name"], "body": r.get("body") or "",
+                 "pre": bool(r.get("prerelease")), "date": r.get("published_at") or "", "url": r.get("html_url") or "",
+                 "zip": r.get("zipball_url") and f"https://github.com/{USER}/{q(name)}/archive/refs/tags/{q(r['tag_name'])}",
+                 "assets": [{"name": a["name"], "size": a.get("size", 0), "count": a.get("download_count", 0),
+                             "url": a["browser_download_url"]} for a in r.get("assets", [])]}
+                for r in data if not r.get("draft")]
+        write(path, json.dumps(rels))
+        return rels
+    except Exception as e:
+        log(f"  ! releases for {name} not fetched ({e}); using cached copy")
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                return json.load(fh)
+        return []
+
+
+def releases_html(rels, name, branch, tree_files, tree_dirs):
+    latest = next((r for r in rels if not r["pre"]), None)
+    out = []
+    for r in rels:
+        badge = '<span class="badge warn">Pre-release</span>' if r["pre"] else ('<span class="badge ok">Latest</span>' if r is latest else "")
+        when = ""
+        if r["date"]:
+            when = timetag(int(datetime.fromisoformat(r["date"].replace("Z", "+00:00")).timestamp()))
+        rows = [f'<div class="rr"><a class="rn2" href="{esc(a["url"])}" rel="noopener">{icon("download")}<span>{esc(a["name"])}</span></a>'
+                f'<span class="fm">{human_size(a["size"])}</span><span class="ft">{plural(a["count"], "download")}</span></div>' for a in r["assets"]]
+        if r["zip"]:
+            for ext, label in ((".zip", "Source code (zip)"), (".tar.gz", "Source code (tar.gz)")):
+                rows.append(f'<div class="rr"><a class="rn2" href="{esc(r["zip"] + ext)}" rel="noopener">{icon("code")}<span>{label}</span></a><span class="fm"></span></div>')
+        notes = f'<div class="md">{render_markdown(r["body"], name, branch, "", tree_files, tree_dirs)}</div>' if r["body"].strip() else ""
+        out.append(f'<section class="release card"><header>{icon("tag")}<b>{esc(r["name"])}</b>{badge}<span class="mu">{esc(r["tag"])} {when}</span>'
+                   f'<a class="btn sm" href="{esc(r["url"])}" rel="noopener">GitHub{icon("ext", "xs")}</a></header>{notes}<div class="assets">{"".join(rows)}</div></section>')
+    return "".join(out) or '<div class="ftable"><div class="empty">No releases yet.</div></div>'
+
+
 def render_repo(meta, bare, out_dir):
     name = meta["name"]
     try:
@@ -677,7 +718,8 @@ def render_repo(meta, bare, out_dir):
     latest_detail = details[0] if details else None
     n_commits = len(commits)
     commits_label = f"{n_commits}+" if shallow else str(n_commits)
-    counts = {"commits": commits_label, "branches": len(branches), "tags": len(tags)}
+    releases = meta.get("releases", [])
+    counts = {"commits": commits_label, "branches": len(branches), "tags": len(tags), "releases": len(releases)}
     total_size = sum(s for _, s in file_sizes)
     rh = lambda active: repo_head(meta, active, counts)
 
@@ -889,6 +931,9 @@ def render_repo(meta, bare, out_dir):
                         f'<a class="fm" href="{commit_href(r["sha"])}">{esc(r["subject"])}</a><span class="ft">{timetag(r["ts"]) if r["ts"] else ""}</span></div>')
         return "".join(rows) or '<div class="empty">Nothing here yet.</div>'
 
+    main = f'{rh("releases")}<div class="wrap"><div class="col"><h2 class="sec">Releases</h2>{releases_html(releases, name, branch, tree_files, tree_dirs)}</div></div>'
+    write(page_file(f"/{name}/releases/"), layout(f"Releases · {USER}/{name}", main, path=f"/{name}/releases/", cls="p-releases"))
+
     for kind, label, items in (("b", "branches", branches), ("t", "tags", tags)):
         main = f'{rh(label)}<div class="wrap"><div class="col"><h2 class="sec">{label.capitalize()}</h2><div class="ftable refs">{ref_rows(items, kind)}</div></div></div>'
         write(page_file(f"/{name}/{label}/"), layout(f"{label.capitalize()} · {USER}/{name}", main, path=f"/{name}/{label}/", cls="p-refs"))
@@ -912,7 +957,8 @@ def build_one(meta, prev_key):
         retry(lambda: sync_repo(name, bare))
         head = git(bare, "rev-parse", "HEAD", check=False).strip()
         refs = git(bare, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/tags")
-        sig = {"v": CFG["src"], "base": CFG["base"], "head": head, "refs": refs,
+        meta = {**meta, "releases": fetch_releases(name)}
+        sig = {"v": CFG["src"], "base": CFG["base"], "head": head, "refs": refs, "releases": meta["releases"],
                "meta": {k: meta.get(k) for k in ("description", "stargazers_count", "forks_count", "topics", "homepage", "fork", "archived", "license", "default_branch")}}
         key = hashlib.sha1(json.dumps(sig, sort_keys=True, default=str).encode()).hexdigest()
         if key == prev_key and os.path.isdir(cached) and os.path.exists(fcache):

@@ -192,6 +192,14 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .rn2 span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rr .fm { flex: 1; } .rr .ft { flex: none; }
 
+/* releases */
+.release { margin-bottom: 16px; }
+.release > header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.release > header b { font-size: 15px; } .release > header .mu { font-weight: 400; }
+.release > header .btn { margin-left: auto; }
+.assets { border-top: 1px solid var(--bd); }
+.card .assets .rr { flex-wrap: nowrap; } .card .assets .rn2 { flex: 1; max-width: none; } .card .assets .rr .fm { flex: none; order: 0; display: block; }
+
 /* readme / markdown */
 .readme { margin-top: 16px; }
 .readme > header { display: flex; align-items: center; gap: 8px; }
