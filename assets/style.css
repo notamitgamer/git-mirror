@@ -12,6 +12,7 @@
   --r:6px; --nav:52px;
 }
 ::selection { background: color-mix(in srgb, var(--ac) 30%, transparent); }
+[hidden] { display: none !important; }   /* layout rules (flex, grid) must never un-hide anything */
 @view-transition { navigation: auto; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .14s; }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
