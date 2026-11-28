@@ -240,19 +240,25 @@
     await p.prompt();
   });
 
-  /* ───── back to top + active home tab ───── */
+  /* ───── back to top ───── */
   const top_ = $('#top');
-  function onScroll() {
-    top_.hidden = scrollY < 600;
-    const tabs = $$('.htabs .tab'), repos = $('#repos');
-    if (!tabs.length || !repos) return;
-    const atEnd = innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
-    const inRepos = repos.getBoundingClientRect().top < 160 || (atEnd && scrollY > 0);
-    tabs[0].classList.toggle('on', !inRepos);
-    tabs[1].classList.toggle('on', inRepos);
-  }
+  function onScroll() { top_.hidden = scrollY < 600; }
   addEventListener('scroll', onScroll, { passive: true });
   top_.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+
+  /* ───── theme picker ───── */
+  const picker = $('#theme');
+  function paintTheme() {
+    const bar = $('meta[name="theme-color"]');
+    if (bar) bar.content = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim();
+  }
+  picker.value = document.documentElement.dataset.theme || picker.options[0].value;
+  picker.addEventListener('change', () => {
+    document.documentElement.dataset.theme = picker.value;
+    try { localStorage.setItem('theme', picker.value); } catch {}
+    paintTheme();
+  });
+  paintTheme();
 
   /* ───── init per page ───── */
   function init() {

@@ -57,6 +57,7 @@ jobs:
           MIRROR_BASE_URL: ${{ vars.MIRROR_BASE_URL }}
           MIRROR_REBUILD_NOTE: ${{ vars.MIRROR_REBUILD_NOTE || (github.repository == 'notamitgamer/git-mirror' && 'rebuilt every 30 minutes') || '' }}
           MIRROR_BRANCHES: ${{ vars.MIRROR_BRANCHES }}
+          MIRROR_THEME: ${{ vars.MIRROR_THEME }}
         run: python build.py
 
       # Only write a new cache entry when something actually changed.

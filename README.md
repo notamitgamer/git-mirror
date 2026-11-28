@@ -40,7 +40,9 @@ and an `Authorization: Bearer <token>` header (fine-grained token, this reposito
 
 ## Front end
 
-* Catppuccin Mocha theme with the peach accent. System fonts only, no frameworks, about 20 KB of CSS and 12 KB of JS.
+* Themes: Catppuccin (Mocha by default, Macchiato, Frappé, Latte), Light, Tokyo Night, Nord, two colour-blind
+  friendly themes and High contrast. The picker is in the top bar and remembers your choice. Add a theme by adding
+  an entry to `assets/themes.json`; set the default with the `MIRROR_THEME` variable. System fonts only, no frameworks, about 20 KB of CSS and 12 KB of JS.
 * **Instant navigation.** Internal links are prefetched aggressively (everything near the viewport, the rest of
   the page shortly after, and on hover or touch), and clicks swap the page content in memory, so navigation
   feels like a single-page app while staying plain static HTML. Back/forward, scroll restoration, open in new

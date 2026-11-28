@@ -183,6 +183,7 @@ def avatar(name):
 # ───────────────────────────── icons ─────────────────────────────
 
 _I = {
+    "palette": ("0 0 24 24", '<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/>'),
     "repo": ("0 0 24 24", '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>'),
     "folder": ("0 0 24 24", '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>'),
     "file": ("0 0 24 24", '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>'),
@@ -451,6 +452,26 @@ def highlight_lines(text, filename, colour=True):
 SPEC_RULES = json.dumps({"prefetch": [{"where": {"href_matches": "/*"}, "eagerness": "eager"}]})
 
 
+def load_themes():
+    """assets/themes.json: add an entry there to add a theme. The first one (or MIRROR_THEME) is the default."""
+    with open(os.path.join(ASSETS, "themes.json"), encoding="utf-8") as fh:
+        themes = json.load(fh)
+    wanted = os.environ.get("MIRROR_THEME")
+    themes.sort(key=lambda t: t["id"] != wanted)
+    return themes
+
+
+def theme_css(themes):
+    def block(selector, t):
+        return selector + "{color-scheme:" + t["scheme"] + ";" + "".join(f"--{k}:{v};" for k, v in t["colors"].items()) + "}"
+    return block(":root", themes[0]) + "".join(block(f':root[data-theme="{t["id"]}"]', t) for t in themes)
+
+
+# runs before first paint, so a saved theme never flashes the default
+THEME_BOOT = ("<script>try{var t=localStorage.getItem('theme'),o=t&&document.querySelector('meta[name=themes]').content.split(',');"
+              "if(o&&o.indexOf(t)>=0)document.documentElement.dataset.theme=t}catch(e){}</script>")
+
+
 def layout(title, main, *, path="/", desc="", cls="", noindex=False):
     base, v = CFG["base"], CFG["v"]
     full_title = esc(title)
@@ -462,8 +483,9 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{full_title}</title>
 <meta name="description" content="{desc}">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#181825">
+<meta name="theme-color" content="{CFG["themes"][0]["colors"]["bg2"]}">
+<meta name="themes" content="{",".join(t["id"] for t in CFG["themes"])}">
+{THEME_BOOT}
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <link rel="canonical" href="{esc(base + q(path))}">
 <link rel="icon" href="/favicon.png" type="image/png">
@@ -486,6 +508,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <a class="brand" href="/"><img src="/icon.svg" width="26" height="26" alt=""><span>{esc(USER)}<em>/git</em></span></a>
 <form class="search" role="search" onsubmit="return false"><span class="si">{icon('search')}</span><input id="q" type="search" placeholder="Search repos and files…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search repositories and files"><kbd>/</kbd><div id="results" hidden></div></form>
 <a class="nbtn" href="https://github.com/{esc(USER)}" rel="noopener" title="GitHub profile" aria-label="GitHub profile">{icon('github')}<span>GitHub</span></a>
+<label class="nbtn themes" title="Theme">{icon('palette')}<select id="theme" aria-label="Theme">{"".join(f'<option value="{esc(t["id"])}">{esc(t["name"])}</option>' for t in CFG["themes"])}</select></label>
 <button class="nbtn" id="install" type="button" title="Install app" aria-label="Install app" hidden>{icon('download')}<span>Install</span></button>
 <button class="nbtn" id="share" type="button" title="Share" aria-label="Share">{icon('share')}</button>
 </div></header>
@@ -1415,15 +1438,24 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
     if extras.get("readme"):
         readme = (f'<section class="card"><h3>{esc(USER)} / README.md</h3><article class="md">'
                   f'{render_markdown(extras["readme"], USER, "HEAD", "", set(), set())}</article></section>')
-    main = f"""<nav class="htabs" aria-label="Home"><div class="wrap tabs"><a class="tab" href="#main">{icon('repo')}<span>Overview</span></a><a class="tab" href="#repos">{icon('folder')}<span>Repositories</span><em>{len(repos)}</em></a></div></nav>
-<div class="wrap home"><aside>{prof}</aside><div class="hmain">{readme}{calendar_html(extras.get("calendar"))}{activity_html(commits)}
-<div class="hbar" id="repos"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
+    def tabs(active):
+        links = (("overview", "/", "repo", "Overview", ""), ("repos", "/~repos/", "folder", "Repositories", f"<em>{len(repos)}</em>"))
+        return '<nav class="htabs" aria-label="Home"><div class="wrap tabs">' + "".join(
+            f'<a class="tab{" on" if k == active else ""}" href="{h}">{icon(ic)}<span>{label}</span>{count}</a>' for k, h, ic, label, count in links) + "</div></nav>"
+
+    synced = f'<p class="synced mu">Synced {timetag(built_at)} · {esc(REBUILD_NOTE)}</p>'
+    overview = (f'{tabs("overview")}<div class="wrap home"><aside>{prof}</aside><div class="hmain">{readme}'
+                f'{calendar_html(extras.get("calendar"))}{activity_html(commits)}{synced}</div></div>')
+    listing = f"""{tabs("repos")}<div class="wrap">
+<div class="hbar"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
 <input id="rf" type="search" placeholder="Filter repositories…" aria-label="Filter repositories" autocomplete="off">
 <select id="rs" aria-label="Sort repositories"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>
 <p class="empty" id="rempty" hidden>No repositories match.</p>
-<p class="synced mu">Synced {timetag(built_at)} · {esc(REBUILD_NOTE)}</p></div></div>"""
-    return layout(f"{USER} · git", main, path="/", cls="p-home")
+{synced}</div>"""
+    # "~" cannot appear in a repository name, so /~repos/ never collides with one
+    return (layout(f"{USER} · git", overview, path="/", cls="p-home"),
+            layout(f"Repositories · {USER}", listing, path="/~repos/", cls="p-home"))
 
 
 def main():
@@ -1435,10 +1467,12 @@ def main():
     # assets
     css = open(os.path.join(ASSETS, "style.css"), encoding="utf-8").read()
     js = open(os.path.join(ASSETS, "app.js"), encoding="utf-8").read()
+    themes = load_themes()
+    css = theme_css(themes) + css
     v = hashlib.sha1((css + js).encode()).hexdigest()[:8]
     src = hashlib.sha1((open(__file__, "rb").read() + css.encode() + js.encode())).hexdigest()[:12]
     for f in os.listdir(ASSETS):
-        if f not in ("style.css", "app.js", "nav.js"):
+        if f not in ("style.css", "app.js", "nav.js", "themes.json"):
             shutil.copy(os.path.join(ASSETS, f), os.path.join(SITE, f))
     write(os.path.join(SITE, "style.css"), minify_css(css))
     write(os.path.join(SITE, "app.js"), js)
@@ -1446,7 +1480,7 @@ def main():
 
     base = detect_base()
     prefix = urllib.parse.urlparse(base).path.rstrip("/")
-    CFG.update({"base": base, "v": v, "src": src, "prefix": prefix})
+    CFG.update({"themes": themes, "base": base, "v": v, "src": src, "prefix": prefix})
     log(f"user={USER} base={base} depth={DEPTH} assets={v}")
 
     repos, page = [], 1
@@ -1505,8 +1539,10 @@ def main():
         separators=(",", ":"), ensure_ascii=False))
 
     now = int(time.time())
-    write(os.path.join(SITE, "index.html"), home_page(built, profile, now, fetch_home_extras(), recent_commits([m["name"] for m in built], profile)))
-    write(os.path.join(SITE, "404.html"), layout("Not found · git", '<div class="wrap"><div class="empty big"><h1>404</h1><p>That page does not exist in the mirror.</p><p><a class="btn pri" href="/">Browse repositories</a></p></div></div>', path="/404.html", noindex=True))
+    overview, listing = home_page(built, profile, now, fetch_home_extras(), recent_commits([m["name"] for m in built], profile))
+    write(os.path.join(SITE, "index.html"), overview)
+    write(page_file("/~repos/"), listing)
+    write(os.path.join(SITE, "404.html"), layout("Not found · git", '<div class="wrap"><div class="empty big"><h1>404</h1><p>That page does not exist in the mirror.</p><p><a class="btn pri" href="/~repos/">Browse repositories</a></p></div></div>', path="/404.html", noindex=True))
     write(os.path.join(SITE, "robots.txt"), f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n")
 
     # sitemap from what was actually written
