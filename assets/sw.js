@@ -26,7 +26,7 @@ async function handle(req) {
     const hit = await c.match(req);
     if (hit) return hit;
     if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-      return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Offline</title><body style="background:#11111b;color:#cdd6f4;font-family:system-ui;text-align:center;padding:20vh 16px"><h1>Offline</h1><p>This page has not been saved on this device yet.</p>',
+      return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Offline</title><body style="background:#11111b;color:#e0def4;font-family:system-ui;text-align:center;padding:20vh 16px"><h1>Offline</h1><p>This page has not been saved on this device yet.</p>',
         { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
     throw err;

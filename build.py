@@ -498,8 +498,8 @@ def theme_css(themes):
         return selector + "{color-scheme:" + t["scheme"] + ";" + "".join(f"--{k}:{v};" for k, v in t["colors"].items()) + "}"
     by = {t["id"]: t for t in themes}
     auto = ""
-    if "mocha" in by and "latte" in by:
-        auto = block(':root[data-theme="auto"]', by["mocha"]) + "@media (prefers-color-scheme: light){" + block(':root[data-theme="auto"]', by["latte"]) + "}"
+    if "rosepine" in by and "rosepine-dawn" in by:
+        auto = block(':root[data-theme="auto"]', by["rosepine"]) + "@media (prefers-color-scheme: light){" + block(':root[data-theme="auto"]', by["rosepine-dawn"]) + "}"
     return auto + block(":root", themes[0]) + "".join(block(f':root[data-theme="{t["id"]}"]', t) for t in themes)
 
 
