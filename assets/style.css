@@ -130,8 +130,8 @@ html.loading::before { content: ""; position: fixed; z-index: 100; inset: 0 auto
 .chips span { background: var(--bg3); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
 .hbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .hbar .sec { margin: 18px 0 12px; margin-right: auto; }
-.hbar input, .hbar select { height: 32px; border: 1px solid var(--bd); border-radius: var(--r); background: var(--bg); padding: 0 10px; min-width: 0; }
-.hbar input { flex: 1 1 200px; max-width: 320px; }
+.hbar input:not([type="checkbox"]), .hbar select { height: 32px; border: 1px solid var(--bd); border-radius: var(--r); background: var(--bg); padding: 0 10px; min-width: 0; }
+.hbar input:not([type="checkbox"]) { flex: 1 1 200px; max-width: 320px; }
 .rlist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--bd); border-radius: var(--r); overflow: hidden; }
 .lg i, .llist i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .synced { text-align: center; margin-top: 16px; font-size: 12px; }
@@ -238,7 +238,7 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .codebox.wrapped .code { flex: 1 1 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-wrap][aria-pressed="true"] { background: var(--acbg); color: var(--ac); }
 .items .rr[hidden] { display: none; }
-.hbar .chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mu); }
+.hbar .chk { flex: none; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; color: var(--mu); }
 .ifilter { margin: 14px 0 0; }
 .clone.branches { margin-left: 0; } .clone.branches .pop { left: 0; right: auto; max-height: 60vh; overflow: auto; }
 .clone.branches[open] summary { background: var(--bg3); }
