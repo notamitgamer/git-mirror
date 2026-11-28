@@ -185,6 +185,10 @@ def avatar(name):
 # ───────────────────────────── icons ─────────────────────────────
 
 _I = {
+    "image": ("0 0 24 24", '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>'),
+    "text": ("0 0 24 24", '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M8 13h8M8 17h8M8 9h2"/>'),
+    "braces": ("0 0 24 24", '<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>'),
+    "box": ("0 0 24 24", '<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>'),
     "palette": ("0 0 24 24", '<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/>'),
     "repo": ("0 0 24 24", '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>'),
     "folder": ("0 0 24 24", '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>'),
@@ -492,7 +496,11 @@ def load_themes():
 def theme_css(themes):
     def block(selector, t):
         return selector + "{color-scheme:" + t["scheme"] + ";" + "".join(f"--{k}:{v};" for k, v in t["colors"].items()) + "}"
-    return block(":root", themes[0]) + "".join(block(f':root[data-theme="{t["id"]}"]', t) for t in themes)
+    by = {t["id"]: t for t in themes}
+    auto = ""
+    if "mocha" in by and "latte" in by:
+        auto = block(':root[data-theme="auto"]', by["mocha"]) + "@media (prefers-color-scheme: light){" + block(':root[data-theme="auto"]', by["latte"]) + "}"
+    return auto + block(":root", themes[0]) + "".join(block(f':root[data-theme="{t["id"]}"]', t) for t in themes)
 
 
 # runs before first paint, so a saved theme never flashes the default
@@ -504,6 +512,11 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
     base, v = CFG["base"], CFG["v"]
     full_title = esc(title)
     desc = esc(desc or f"Static mirror of {USER}'s public repositories")
+    repo = path.strip("/").split("/")[0]
+    if repo and repo not in ("~repos", "404.html"):   # GitHub's own preview card: repo name, description and stats
+        og, card = f"https://opengraph.githubassets.com/1/{q(USER)}/{q(repo)}", "summary_large_image"
+    else:
+        og, card = f"{base}/icon-512.png", "summary"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -512,7 +525,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <title>{full_title}</title>
 <meta name="description" content="{desc}">
 <meta name="theme-color" content="{CFG["themes"][0]["colors"]["bg2"]}">
-<meta name="themes" content="{",".join(t["id"] for t in CFG["themes"])}">
+<meta name="themes" content="{",".join(t["id"] for t in CFG["themes"])},auto">
 {THEME_BOOT}
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <link rel="canonical" href="{esc(base + q(path))}">
@@ -525,8 +538,9 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <meta property="og:title" content="{full_title}">
 <meta property="og:description" content="{desc}">
 <meta property="og:url" content="{esc(base + q(path))}">
-<meta property="og:image" content="{esc(base)}/icon-512.png">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="{esc(og)}">
+<meta name="twitter:card" content="{card}">
+<link rel="alternate" type="application/atom+xml" title="Commits and releases" href="/feed.xml">
 <link rel="stylesheet" href="/style.css?v={v}">
 <script src="/app.js?v={v}" defer></script>
 <script type="speculationrules">{SPEC_RULES}</script>
@@ -536,7 +550,7 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 <a class="brand" href="/"><img src="/icon.svg" width="26" height="26" alt=""><span>{esc(USER)}<em>/git</em></span></a>
 <form class="search" role="search" onsubmit="return false"><span class="si">{icon('search')}</span><input id="q" type="search" placeholder="Search repos and files…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search repositories and files"><kbd>/</kbd><div id="results" hidden></div></form>
 <a class="nbtn" href="https://github.com/{esc(USER)}" rel="noopener" title="GitHub profile" aria-label="GitHub profile">{icon('github')}<span>GitHub</span></a>
-<label class="nbtn themes" title="Theme">{icon('palette')}<select id="theme" aria-label="Theme">{"".join(f'<option value="{esc(t["id"])}">{esc(t["name"])}</option>' for t in CFG["themes"])}</select></label>
+<label class="nbtn themes" title="Theme">{icon('palette')}<select id="theme" aria-label="Theme">{"".join(f'<option value="{esc(t["id"])}">{esc(t["name"])}</option>' for t in CFG["themes"])}<option value="auto">Follow system</option></select></label>
 <button class="nbtn" id="install" type="button" title="Install app" aria-label="Install app" hidden>{icon('download')}<span>Install</span></button>
 <button class="nbtn" id="share" type="button" title="Share" aria-label="Share">{icon('share')}</button>
 </div></header>
@@ -545,8 +559,9 @@ def layout(title, main, *, path="/", desc="", cls="", noindex=False):
 </main>
 <footer class="foot"><div class="wrap">
 <span>Static mirror of <a href="https://github.com/{esc(USER)}" rel="noopener">@{esc(USER)}</a>&rsquo;s public repositories</span>
-<span><a href="https://github.com/{esc(SELF_REPO)}" rel="noopener">Source</a> · <a href="/last_commit" data-nopjax>Build info</a></span>
+<span><a href="https://github.com/{esc(SELF_REPO)}" rel="noopener">Source</a> · <a href="/feed.xml" data-nopjax>Feed</a> · <a href="/last_commit" data-nopjax>Build info</a></span>
 </div></footer>
+<div id="offline" class="offline" role="status" hidden>You are offline. This is a saved copy and may be out of date.</div>
 <button id="top" type="button" aria-label="Back to top" hidden>&#8593;</button>
 </body>
 </html>
@@ -1048,6 +1063,21 @@ def render_discussions(meta, rh, branch, tree_files, tree_dirs):
             write(page_file(f"/{name}/{kind}/{i['n']}/"), layout(f"{i['title']} · {USER}/{name}#{i['n']}", main, path=f"/{name}/{kind}/{i['n']}/"))
 
 
+def file_icon(name):
+    ext = posixpath.splitext(name)[1].lower()
+    if ext in IMG_EXT:
+        return icon("image", "f-img")
+    if ext in (".md", ".mdx", ".markdown", ".txt", ".rst", ".pdf") or name.upper().startswith("LICENSE"):
+        return icon("text", "f-doc")
+    if ext in (".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".xml", ".env", ".lock") or name.startswith("."):
+        return icon("braces", "f-cfg")
+    if ext in (".zip", ".gz", ".tar", ".7z", ".rar", ".jar", ".apk"):
+        return icon("box", "f-zip")
+    if ext in LANGS:
+        return icon("code", "f-code")
+    return icon("file")
+
+
 def render_repo(meta, bare, out_dir):
     name = meta["name"]
     try:
@@ -1132,7 +1162,7 @@ def render_repo(meta, bare, out_dir):
             if e["type"] == "tree":
                 href, ic = f"{root}/tree/{q(p)}/", icon("folder", "dir")
             else:
-                href, ic = f"{root}/blob/{q(p)}/", icon("file")
+                href, ic = f"{root}/blob/{q(p)}/", file_icon(e["name"])
             msg = f'<a class="fm" href="{commit_href(c["sha"])}" tabindex="-1">{esc(c["subject"])}</a>' if c else '<span class="fm"></span>'
             tm = f'<span class="ft">{timetag(c["ts"])}</span>' if c else '<span class="ft"></span>'
             return f'<div class="fr"><a class="fn" href="{href}">{ic}<span>{esc(e["name"])}</span></a>{msg}{tm}</div>'
@@ -1452,6 +1482,26 @@ def detect_base():
     return f"https://{host}" if repo.lower() == host else f"https://{host}/{repo}"
 
 
+def feed_xml(base, names, commits, now):
+    entries = [(c["ts"], f'{c["repo"]}: {c["subject"]}', f'https://github.com/{USER}/{q(c["repo"])}/commit/{c["sha"]}') if not os.path.exists(page_file(f'/{c["repo"]}/commit/{c["sha"][:10]}/'))
+               else (c["ts"], f'{c["repo"]}: {c["subject"]}', f'{base}/{q(c["repo"])}/commit/{c["sha"][:10]}/') for c in commits]
+    for name in names:
+        try:
+            with open(os.path.join(CACHE, "releases", name + ".json"), encoding="utf-8") as fh:
+                for r in json.load(fh):
+                    if r["date"]:
+                        ts = int(datetime.fromisoformat(r["date"].replace("Z", "+00:00")).timestamp())
+                        entries.append((ts, f'{name} released {r["name"]}', f'{base}/{q(name)}/releases/#rel-{q(r["tag"])}'))
+        except OSError:
+            pass
+    clean = lambda s: esc(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", s))
+    body = "".join(f'<entry><title>{clean(t)}</title><link href="{esc(u)}"/><id>{esc(u)}</id><updated>{iso(ts)}</updated></entry>'
+                   for ts, t, u in sorted(entries, reverse=True)[:50])
+    return (f'<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>{esc(USER)} · commits and releases</title>'
+            f'<link href="{esc(base)}/"/><link rel="self" href="{esc(base)}/feed.xml"/><id>{esc(base)}/</id><updated>{iso(now)}</updated>'
+            f'<author><name>{esc(USER)}</name></author>{body}</feed>')
+
+
 def home_page(repos, profile, built_at, extras=None, commits=()):
     extras = extras or {}
     rows = []
@@ -1601,6 +1651,8 @@ def main():
     overview, listing = home_page(built, profile, now, fetch_home_extras(), recent_commits([m["name"] for m in built], profile))
     write(os.path.join(SITE, "index.html"), overview)
     write(page_file("/~repos/"), listing)
+    names = [m["name"] for m in built]
+    write(os.path.join(SITE, "feed.xml"), feed_xml(base, names, recent_commits(names, profile, 30), now))
     write(os.path.join(SITE, "404.html"), layout("Not found · git", '<div class="wrap"><div class="empty big"><h1>404</h1><p>That page does not exist in the mirror.</p><p><a class="btn pri" href="/~repos/">Browse repositories</a></p></div></div>', path="/404.html", noindex=True))
     write(os.path.join(SITE, "robots.txt"), f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n")
 

@@ -244,6 +244,10 @@ a.sha:hover { color: var(--ac); text-decoration: none; }
 .clone.branches[open] summary { background: var(--bg3); }
 .pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .pin { padding: 12px 14px; } .pin p { margin: 4px 0 8px; font-size: 13px; }
+.fn .i.f-img { color: var(--purple); } .fn .i.f-doc { color: var(--info); } .fn .i.f-cfg { color: var(--warn); }
+.fn .i.f-zip { color: var(--bad); } .fn .i.f-code { color: var(--ok); }
+.offline { position: fixed; left: 12px; right: 64px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 46; max-width: 420px; padding: 8px 12px; border: 1px solid var(--warn); border-radius: var(--r); background: var(--bg2); font-size: 13px; }
+.offline[hidden] { display: none; }
 /* readme / markdown */
 .readme { margin-top: 16px; }
 .readme > header { display: flex; align-items: center; gap: 8px; }

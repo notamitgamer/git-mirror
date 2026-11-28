@@ -260,6 +260,7 @@
     paintTheme();
   });
   paintTheme();
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', paintTheme);
 
   /* ───── copy buttons + line wrap ───── */
   function copyButtons() {
@@ -300,6 +301,10 @@
     };
     f.oninput = run; l.onchange = run;
   }
+
+  /* ───── offline notice ───── */
+  const net = () => ($('#offline').hidden = navigator.onLine);
+  addEventListener('online', net); addEventListener('offline', net); net();
 
   /* ───── init per page ───── */
   function init() {

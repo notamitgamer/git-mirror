@@ -49,6 +49,10 @@ and an `Authorization: Bearer <token>` header (fine-grained token, this reposito
   tab and no-JS browsing all work. Chromium also gets `speculationrules` prefetch and cross-fade transitions.
 * **Installable (PWA).** An Install button appears where the browser supports it (on iPhone and iPad use
   *Share → Add to Home Screen*). Pages you have loaded stay readable offline.
+* Copy buttons on code blocks, a contents list on long READMEs, line wrap in the file viewer, emoji shortcodes, and
+  `#12` / `@user` links in issues and release notes.
+* Pinned repositories, language and fork filters, a branch picker, and issue / PR search by title and label.
+* File type icons, link preview cards, a "Follow system" theme, an offline notice and an Atom feed (`/feed.xml`).
 * Mobile first: tables, code and diffs scroll inside their own boxes, so the page itself never scrolls sideways.
 * Search (`/`) covers repo names, descriptions and file paths. `t` jumps to "Go to file" on a repo page.
   `#L10` and `#L10-L20` highlight lines.
