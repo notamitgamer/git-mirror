@@ -1554,11 +1554,11 @@ def home_page(repos, profile, built_at, extras=None, commits=()):
     overview = (f'{tabs("overview")}<div class="wrap home"><aside>{prof}</aside><div class="hmain">{pinned_html(extras.get("pinned") or [], {m["name"] for m in repos})}{readme}'
                 f'{calendar_html(extras.get("calendar"))}{activity_html(commits)}{synced}</div></div>')
     listing = f"""{tabs("repos")}<div class="wrap">
-<div class="hbar"><h2 class="sec">Repositories <em>{len(repos)}</em></h2>
+<div class="hbar"><h2 class="sec">Repositories <em id="rcount">{len(repos)}</em></h2>
 <input id="rf" type="search" placeholder="Filter repositories…" aria-label="Filter repositories" autocomplete="off">
-<select id="rlang" aria-label="Language"><option value="">All languages</option>{"".join(f'<option value="{esc(x.lower())}">{esc(x)}</option>' for x in sorted({m["language"] for m in repos if m.get("language")}))}</select>
-<label class="chk"><input type="checkbox" id="rfork"> Hide forks</label>
-<select id="rs" aria-label="Sort repositories"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
+<select id="rlang" aria-label="Language" autocomplete="off"><option value="">All languages</option>{"".join(f'<option value="{esc(x.lower())}">{esc(x)}</option>' for x in sorted({m["language"] for m in repos if m.get("language")}))}</select>
+<label class="chk"><input type="checkbox" id="rfork" autocomplete="off"> Hide forks</label>
+<select id="rs" aria-label="Sort repositories" autocomplete="off"><option value="t">Recently updated</option><option value="n">Name</option><option value="s">Most stars</option></select></div>
 <ul class="rlist" id="rl">{"".join(rows)}</ul>
 <p class="empty" id="rempty" hidden>No repositories match.</p>
 {synced}</div>"""

@@ -170,8 +170,13 @@
         list.appendChild(r);
       });
       empty.hidden = shown > 0;
+      $('#rcount').textContent = shown === rows.length ? rows.length : shown + ' of ' + rows.length;
     };
-    f.oninput = run; s.onchange = run; $('#rlang').onchange = run; $('#rfork').onchange = run;
+    f.oninput = run; s.onchange = run; $('#rlang').onchange = run;
+    const forks = $('#rfork');
+    try { forks.checked = sessionStorage.getItem('hideForks') === '1'; } catch {}
+    forks.onchange = () => { try { sessionStorage.setItem('hideForks', forks.checked ? '1' : '0'); } catch {} run(); };
+    run();   // the list must match the controls from the start
   }
 
   /* ───── global search (repos + files) ───── */
